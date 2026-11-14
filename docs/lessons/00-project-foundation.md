@@ -2,11 +2,13 @@
 
 本课目标：你亲自编写一个静态库和调用它的程序，通过 CMake + Ninja 构建，在 VS Code 或 Vim 中编辑。先学会表达源码和依赖的关系，后续再把窗口、Vulkan 和其他系统加入同一套构建流程。
 
-预计整课 3–5 小时。当前先做 L00.1：环境检查与最小工程；完成后再做 L00.2 的预设整理、依赖故障实验和自检。时间用于规划，不作为掌握标准。
+预计整课 3–5 小时。L00.1 是环境检查与最小工程；L00.2 是预设整理、依赖故障实验和自检。时间用于规划，不作为掌握标准。
 
 初始化时助手生成的根目录骨架仅作参考。以下练习由你亲自创建，助手提供关键提示并审查，不替你写入课程代码。
 
-当前入口（2026-11-14）：环境为 **Ubuntu 24.04.5 LTS / x86_64 / zsh**。用户已反馈编译运行且输出为空。最新审查确认 include 路径和 main 已补齐，练习可以编译链接，但 `engine_name()` 仍只有 TODO、没有返回值。先修正此问题并验证名称输出，再进行下文 L00.2。下文命令适用于当前 zsh，也适用于 Bash。
+当前入口（2026-11-15）：最新日志确认环境为 **Windows x64 / Git Bash / MSVC / Ninja / Debug**。用户已补齐返回值，两次运行分别输出 `IceShell` 和 `IceShellEngine`，退出码均为 0；名称变体只重编译实现、归档库并重新链接，用户已正确解释原因。**L00.1 实现与运行验收通过，L00.2 任务 B 已完成；接下来完成任务 A、C 及依赖传递、生命周期自检。** 下文运行命令按当前 Git Bash 环境给出，Linux 验证记录见进度文档。
+
+暂停位置（2026-11-15）：用户在任务 A 讲解后暂停学习。预设的职责、字段和操作步骤已讲解，待用户创建文件、执行验证并回答任务 A 的两个自检问题；保存时尚未发现练习预设文件。下次先检查最新文件与反馈，完整记录见 [学习进度](../PROGRESS.md)。
 
 ## L00.1：先理解工具关系
 
@@ -26,20 +28,19 @@ Windows 当前可以直接使用已有 MSVC 命令行工具链，无需打开 Vi
 
 ## 第一步：确认工具
 
-本课只需要 C++20 编译器、CMake 3.25+ 和 Ninja。当前 Linux 环境已完成检查，无需重复安装。可在终端复查：
+本课只需要 C++20 编译器、CMake 3.25+ 和 Ninja。当前 Windows 系统级持久配置已完成，用户已成功构建运行，无需重复安装。需要排查工具路径时可在 Git Bash 复查：
 
 ```bash
 cmake --version
 ninja --version
-c++ --version
-command -v cmake ninja c++
+command -v cmake ninja cl
 ```
 
-本次实测：CMake 4.4.2、Ninja 1.11.1、GCC 13.3.0；另有 Clang/clangd 18.1.3、GDB 15.1。当前 CMake 实际选择 `/usr/bin/c++`（GCC）。clangd 可给编辑器提供语言服务，不要求同时把构建编译器改为 Clang。
+当前用户日志调用 `cl.exe`、`lib.exe` 和 `link.exe`，使用 MSVC 工具集 `14.43.34808`，并由 Ninja 执行构建。`MINGW64` 是 Git Bash 的提示符，不代表本次使用 GCC。此前 Linux 的 GCC/clangd 验证独立保留；clangd 是语言服务，不决定构建编译器。
 
-Vulkan 工具、头文件和 validation layer 也已发现，但本课没有 Vulkan 调用。详细环境记录与 Windows 历史配置见 [开发环境说明](../DEVELOPMENT.md)。
+本课没有 Vulkan 调用。详细工具版本、平台验证与持久配置见 [开发环境说明](../DEVELOPMENT.md)。
 
-跨平台只复用源码与构建描述；CMake 缓存、目标文件和程序必须在本平台重新生成。本课使用独立的 `build/lesson00-linux-debug`，不复用旧 Windows 构建目录。
+跨平台只复用源码与构建描述；CMake 缓存、目标文件和程序必须在本平台重新生成。当前用户使用的目录虽名为 `build/lesson00-linux-debug`，已核对其缓存实际为 Windows/MSVC/Ninja/Debug，名称不决定平台。下面保留已验证的运行路径；任务 A 将使用新目录 `build/lesson00-windows-debug`，不直接搬动现有缓存。
 
 ## 第二步：完成已有的四文件练习
 
@@ -62,14 +63,14 @@ practice/
 3. `main.cpp` 通过头文件调用这个函数，将名称输出到终端，然后正常退出。
 4. CMake 声明 C++ 项目，创建 `vle_core` 静态库与 `vle_sandbox` 可执行 target，使后者链接前者，并要求 C++20。
 
-2026-11-14 只读审查与构建结果：
+2026-11-15 只读审查与用户构建反馈：
 
 | 文件 | 当前状态 | 你接下来要做的事 |
 | --- | --- | --- |
-| `practice/CMakeLists.txt` | 已有带注释的参考配置；Linux 配置成功 | 理解两个 target 和三条依赖关系 |
+| `practice/CMakeLists.txt` | 已有带注释的参考配置；用户 Windows 构建成功 | 自检两个 target 和三条依赖关系 |
 | `practice/include/vle/engine_info.hpp` | 已包含 `<string_view>`，函数声明正确 | 保留接口，理解它只声明、不提供函数体 |
-| `practice/src/engine_info.cpp` | include 已正确；函数体只有 TODO，没有 return | 返回指向名称字面量的视图，消除 `-Wreturn-type` 警告 |
-| `practice/src/main.cpp` | 已包含接口并调用、输出、返回 0 | 函数修正后验证输出内容 |
+| `practice/src/engine_info.cpp` | include 正确；已返回 `"IceShellEngine"`，与变体输出一致 | 自检 string_view 的非拥有语义与生命周期 |
+| `practice/src/main.cpp` | 已调用接口、输出并返回 0；两次运行符合预期 | 进入预设与链接故障实验 |
 
 此前构建的首个错误是 `engine_info.hpp: No such file or directory`，发生在源码预处理阶段，现已修正。编译命令已有 `-I.../practice/include`，实际头文件在 `include/vle/`，可以包含：
 
@@ -79,15 +80,15 @@ practice/
 
 可以把查找关系理解为 `搜索根目录 practice/include` + `vle/engine_info.hpp`。仅把双引号换成尖括号不会补出缺少的 `vle/`。不要包含 `.cpp` 来绕过库的编译与链接关系。
 
-最新 review 在新目录 `build/lesson00-linux-review` 配置、编译和链接完成，但 GCC 报告：
+此前 Linux review 在新目录 `build/lesson00-linux-review` 配置、编译和链接完成，但当时 GCC 报告：
 
 ```text
 warning: no return statement in function returning non-void [-Wreturn-type]
 ```
 
-这是当前必须先修正的问题。`engine_name()` 返回 `std::string_view`，执行到函数末尾却没有返回值会产生未定义行为，并不会自动构造一个空视图。用户反馈的“空输出”不满足名称输出要求，也不能用来推断该错误每次都会输出空白。编译链接通过、程序能退出和行为正确需要分别验证。[C++ return 规则](https://eel.is/c++draft/stmt.return#4)
+这个问题现已修正。保留诊断原理：`engine_name()` 返回 `std::string_view`，执行到函数末尾却没有返回值会产生未定义行为，并不会自动构造一个空视图。当时的“空输出”不能用来推断该错误每次都会输出空白。编译链接通过、程序能退出和行为正确需要分别验证。[C++ return 规则](https://eel.is/c++draft/stmt.return#4)
 
-修正方向：在函数体内写一条返回名称字面量的语句，例如局部提示 `return "IceShell";`；由用户写入并保存，然后使用自己的练习构建目录重新编译运行。此次助手未运行已知存在未定义行为的版本。
+用户已在函数体中返回名称字面量，先验证 `IceShell`，再改为 `IceShellEngine` 验证变体；两次日志均未见 warning/error，运行退出码均为 0。本次助手只读核对源码与日志，没有重复执行程序。
 
 ## 核心代码提示
 
@@ -135,25 +136,25 @@ target_link_libraries(vle_sandbox PRIVATE vle_core)
 
 ## 第三步：从项目根目录构建
 
-补齐源码后，在当前 Linux 的 zsh/Bash 中执行：
+当前已通过这组构建与运行验收。需要复查时，在 Windows 的 Git Bash 中从项目根目录执行：
 
 ```sh
-cd /home/withmatthew/workspace/IceShell
+cd /d/dx12_code/IceShell
 cmake -S practice -B build/lesson00-linux-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build/lesson00-linux-debug
-./build/lesson00-linux-debug/vle_sandbox
+./build/lesson00-linux-debug/vle_sandbox.exe
 echo $?
 ```
 
-逐条执行，上一条成功后再执行下一条。Linux 运行文件没有 `.exe` 后缀。这组路径对应单目录练习；根目录参考工程的程序位于 `build/linux-debug/bin/vle_sandbox`，两者不要混用。
+逐条执行，上一条成功后再执行下一条。这组路径对应当前 Windows 单目录练习；根目录参考工程另有构建目录和 `bin/` 输出子目录，两者不要混用。未来切回 Linux 时使用新的平台构建目录，程序没有 `.exe` 后缀。
 
 `-S` 指向源码，`-B` 指向生成文件，`-G Ninja` 选择构建方式。这里的 Ninja 是单配置生成器，所以 Debug 在配置命令中选择。
 
 预期结果：终端输出你选定的引擎名称，程序退出码为 0；构建目录内生成 `build.ninja` 和 `compile_commands.json`。名称不必与参考程序一致。
 
-例如名称选为 `IceShell`，最后两条命令应分别输出 `IceShell` 和 `0`。静态库位于 `build/lesson00-linux-debug/libvle_core.a`。
+当前名称为 `IceShellEngine`，最后两条命令应分别输出 `IceShellEngine` 和 `0`。MSVC 静态库位于 `build/lesson00-linux-debug/vle_core.lib`。
 
-目前已生成 `build.ninja` 和 `compile_commands.json`；它们证明配置与生成成功，不证明源码编译、链接或运行成功。编译数据库记录每个源文件的实际编译参数，供 clangd 等工具读取。[CMake 编译数据库说明](https://cmake.org/cmake/help/latest/variable/CMAKE_EXPORT_COMPILE_COMMANDS.html)
+`build.ninja` 和 `compile_commands.json` 是配置与生成的产物；它们本身不证明源码编译、链接或运行成功。本次另有用户构建与运行日志作为证据。编译数据库记录每个源文件的实际编译参数，供 clangd 等工具读取。[CMake 编译数据库说明](https://cmake.org/cmake/help/latest/variable/CMAKE_EXPORT_COMPILE_COMMANDS.html)
 
 需要定位错误或观察编译参数时，可用：
 
@@ -174,14 +175,14 @@ flowchart LR
 
 `#include` 让编译器看到声明，库提供函数的定义。能够找到头文件和能够链接到实现是两个独立条件。
 
-在 Linux 上，两个 `.cpp` 分别编译成 `.o`；`engine_info.cpp.o` 被归档为 `libvle_core.a`，链接器用程序的目标文件和库生成 `vle_sandbox`。静态库归档并不要求整个程序的符号已经齐全，程序链接才会检查被调用函数是否有匹配定义。
+在当前 MSVC 构建中，两个 `.cpp` 分别编译成 `.obj`；`engine_info.cpp.obj` 被 `lib.exe` 归档为 `vle_core.lib`，`link.exe` 用 `main.cpp.obj` 和库生成 `vle_sandbox.exe`。Linux 的对应文件通常是 `.o`、`libvle_core.a` 和无后缀程序。静态库归档并不要求整个程序的符号已经齐全，程序链接才会检查被调用函数是否有匹配定义。
 
 | 阶段 | 关注什么 | 本课可观察的例子 |
 | --- | --- | --- |
 | CMake 配置与生成 | 编译器、target、依赖和生成规则 | 当前已成功；产出 Ninja 规则和编译数据库 |
-| 预处理与编译 | 头文件可见、声明和语法正确；查看诊断 | include 已修正；当前编译成功但有缺少 return 的警告 |
-| 链接 | 被使用的符号有匹配定义 | 当前已有函数定义，链接成功；移除整个定义的实验预计触发 `undefined reference` |
-| 运行 | 程序实际行为、退出码 | 用户反馈为空；缺少 return 导致未定义行为，待修正后验证名称输出 |
+| 预处理与编译 | 头文件可见、声明和语法正确；查看诊断 | include 和 return 已补齐；两份用户日志均未见 warning/error |
+| 链接 | 被使用的符号有匹配定义 | 用户日志显示链接成功；移除整个定义的实验预期触发 MSVC 的未解析外部符号错误 |
+| 运行 | 程序实际行为、退出码 | 用户分别得到 IceShell、IceShellEngine；两次退出码均为 0 |
 
 完成后自检：
 
@@ -189,13 +190,13 @@ flowchart LR
 2. 为什么程序不必手动再配置一遍引擎的 include 路径？
 3. 如果声明可见、库成功生成，但其中缺少 `engine_name` 的定义，错误会在哪个阶段出现？
 4. 为什么返回字符串字面量的 `string_view` 安全，返回局部 `std::string` 的视图不安全？
-5. 换到 Linux 后，为什么需要重新生成构建目录，而不必重写这份公共 C++ 接口？
+5. 在 Windows/Linux 之间切换时，为什么需要重新生成构建目录，而不必重写这份公共 C++ 接口？
 
 把你的实现、运行结果以及一个不确定点交给助手审查；你也可以直接说明练习所在路径，让助手只读检查。无需一次猜对所有配置细节，核心环节会提供代码提示。
 
 ## L00.2：完成首次运行后再做
 
-本段解决两个问题：如何保存可复现的构建配置，以及如何根据构建阶段定位故障。预计 30–60 分钟，按实际理解情况调整。前置条件是 L00.1 输出名称、退出码为 0，且缺少 return 的警告已消失。
+本段解决两个问题：如何保存可复现的构建配置，以及如何根据构建阶段定位故障。预计 30–60 分钟，按实际理解情况调整。前置条件现已满足；用户提前完成了任务 B 的名称变体与解释，接下来做 A 和 C。
 
 ### 任务 A：把命令整理成预设
 
@@ -207,41 +208,52 @@ flowchart LR
 | --- | --- |
 | 根对象 | `version: 6`，与项目 CMake 3.25 最低要求兼容 |
 | `configurePresets` 中的一个对象 | `name: "lesson00-debug"`、`generator: "Ninja"` |
-| 同一配置预设 | `binaryDir: "${sourceDir}/../build/lesson00-linux-debug"` |
+| 同一配置预设 | `binaryDir: "${sourceDir}/../build/lesson00-windows-debug"` |
 | 同一配置预设的 `cacheVariables` | `CMAKE_BUILD_TYPE: "Debug"`、`CMAKE_EXPORT_COMPILE_COMMANDS: "ON"` |
 | `buildPresets` 中的一个对象 | `name: "lesson00-debug"`、`configurePreset: "lesson00-debug"` |
 
-`${sourceDir}` 在这里是 `practice/`。不要写入本机绝对路径；JSON 属性名需带双引号，不支持普通注释。根目录的现有预设可作为语法参考，但对应的是参考工程。
+`${sourceDir}` 在这里是 `practice/`。新 binaryDir 明确标记 Windows，并重新配置，不重命名旧缓存。不要写入本机绝对路径；JSON 属性名需带双引号，不支持普通注释。根目录的现有预设可作为语法参考，但对应的是参考工程。
 
 创建后从练习目录运行：
 
 ```sh
-cd /home/withmatthew/workspace/IceShell/practice
-cmake --list-presets
+cd /d/dx12_code/IceShell/practice
+cmake --list-presets=all
 cmake --preset lesson00-debug
-cmake --build --preset lesson00-debug
-../build/lesson00-linux-debug/vle_sandbox
+cmake --build --preset lesson00-debug --verbose
+../build/lesson00-windows-debug/vle_sandbox.exe
 echo $?
 ```
 
 验收：预设可列出、配置构建成功、输出与此前一致；可以解释 configure preset 和 build preset 的分工。
 
+任务 A 的两项待回答自检：
+
+1. `configurePreset` 字段起什么作用？
+2. 如果要给 `vle_core` 新增一个 `.cpp`，应该修改哪个文件？
+
+本任务已讲解，尚未收到用户实现和运行结果。先配置再构建；新目录首次构建需要重新生成目标文件，与此前名称变体时的增量构建并不矛盾。
+
 ### 任务 B：观察增量构建
+
+**已完成（2026-11-15）**：用户在原练习构建目录把名称从 IceShell 改为 IceShellEngine，日志由 4 步变为 3 步，跳过 main 编译；运行输出变更且退出码为 0。用户已正确解释原因。以下保留操作步骤供复习，不要求重复完成。
 
 只修改 `engine_info.cpp` 返回的名称字面量，保留头文件和 main 不变。从 `practice/` 执行：
 
 ```sh
 cmake --build --preset lesson00-debug --verbose
-../build/lesson00-linux-debug/vle_sandbox
+../build/lesson00-windows-debug/vle_sandbox.exe
 ```
 
 预期重新编译 `engine_info.cpp`、重新归档库、重新链接程序；`main.cpp` 没变，通常不需要重新编译。记录实际输出，解释“程序要重新链接”与“main 要重新编译”的区别。文件不变时再构建一次，通常会看到 `ninja: no work to do.`。
+
+补充：源码/头文件变化不是唯一重建原因。Ninja 根据依赖、文件时间戳及记录的命令判断产物是否需要更新；实际编译命令改变（例如编译选项改变）或目标文件缺失也会触发重建。这里 main 的依赖和编译命令未变且目标文件已存在，因此复用其 `.obj`。[Ninja 手册](https://ninja-build.org/manual.html)
 
 ### 任务 C：制造并恢复链接错误
 
 先预测错误阶段，再在 `engine_info.cpp` 临时注释掉 **整个 `engine_name()` 定义（签名和函数体）**。保留 `.cpp` 文件、头文件声明、main 中的调用以及原有 CMake 关系。不要只删掉 return，否则会回到本次的未定义行为问题。
 
-执行同一条构建命令，预期库可以归档、程序链接报 `undefined reference`。解释“声明仍在，为什么链接还失败”，然后恢复定义，重新构建运行，确认名称输出与退出码恢复正常。
+执行同一条构建命令，预期库可以归档、程序链接报未解析外部符号；当前 MSVC 通常是 `LNK2019`，随后 `LNK1120` 汇总，Linux 工具链常见措辞为 `undefined reference`。解释“声明仍在，为什么链接还失败”，然后恢复定义，重新构建运行，确认名称输出与退出码恢复正常。失败后先恢复并成功构建，再运行，避免误执行遗留程序。[MSVC LNK2019 说明](https://learn.microsoft.com/en-us/cpp/error-messages/tool-errors/linker-tools-error-lnk2019?view=msvc-170)
 
 可选拓展：临时移除 `target_link_libraries` 的关系。注意这可能先导致传递的 include 路径消失；如要专门观察链接错误，实验时单独保留头文件搜索路径。每次只改变一个因素，结束后恢复原有配置。
 
@@ -249,7 +261,7 @@ cmake --build --preset lesson00-debug --verbose
 
 每次故障实验只改一个因素。L00 的验收是用户亲自完成构建、能解释依赖传递、能定位并恢复一次故障；助手先前的参考工程构建不计作这一学习证据。
 
-学习记录分别核对：① 你完成源码并亲自运行；② 你解释声明→定义→链接→调用的数据流及依赖传递；③ 你完成名称变体或故障诊断并恢复。当前先修正 L00.1 的返回值；L00.2 已安排但尚未执行，不自动记为完成。
+学习记录分别核对：① 你完成源码并亲自运行；② 你解释声明→定义→链接→调用的数据流及依赖传递；③ 你完成名称变体或故障诊断并恢复。当前①和名称变体已有证据；增量构建解释正确，依赖传递与生命周期自检、任务 A/C 仍待完成，不自动判定 L00 整课掌握。
 
 ## 下一课
 

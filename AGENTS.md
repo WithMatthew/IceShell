@@ -26,9 +26,9 @@
 
 - C++20、CMake 3.25+；暂用名称 Vulkan Learning Engine，命名空间 `vle`。
 - 用户偏好 VS Code 或 Vim/Neovim，尽量不使用 Visual Studio IDE。教学主线统一采用命令行 CMake + Ninja，编辑器只作为编辑和调试入口；构建不依赖 IDE 专属工程、按钮或扩展。
-- 用户于 2026-11-14 切换到 Linux；当前已确认 Ubuntu 24.04.5 LTS、x86_64、zsh。默认提供兼容 zsh/Bash 的 Linux 命令，当前构建采用 GCC + CMake + Ninja。此前的 Windows Git Bash 环境仅为历史记录；切回 Windows 时再使用相应入口。提供命令时区分 Bash/zsh、PowerShell、cmd；确需跨 shell 初始化时说明进入与退出方式，以及环境只传给子进程、不会回写父 shell。
+- 用户曾于 2026-11-14 在 Ubuntu 24.04.5 LTS / x86_64 / zsh 上学习；2026-11-15 最新运行日志确认当前使用 Windows Git Bash + MSVC + CMake + Ninja。默认提供 Git Bash 命令和 `.exe` 运行路径；Linux 验证作为独立历史记录。`MINGW64` 提示符不代表使用 GCC，以实际编译命令和缓存为准。提供命令时区分 Bash/zsh、PowerShell、cmd；确需跨 shell 初始化时说明进入与退出方式，以及环境只传给子进程、不会回写父 shell。
 - Windows 可使用现有 MSVC 命令行工具链；Linux 使用 GCC 或 Clang。编译器、SDK 与编辑器分别处理，切换平台时重新配置并构建，不复制构建缓存或二进制。优先标准 C++ 和跨平台库，系统差异收敛到 Platform 与工具链配置。
-- 用户明确要求 Windows 工具链采用系统级持久环境变量，供 Git Bash 和 PowerShell 共同继承；不再默认安排逐次手动初始化或分别修改 shell 启动配置。当前按 x64 MSVC + Windows SDK 配置 Path、INCLUDE、LIB、LIBPATH；一次性环境配置脚本属于已授权的工具准备，不替代用户实现课程代码。已通过读取 Machine 环境与备份确认持久配置写入，用户新终端的完整构建结果仍待验收；不要要求重复配置已经存在的环境。
+- 用户明确要求 Windows 工具链采用系统级持久环境变量，供 Git Bash 和 PowerShell 共同继承；不再默认安排逐次手动初始化或分别修改 shell 启动配置。当前按 x64 MSVC + Windows SDK 配置 Path、INCLUDE、LIB、LIBPATH；一次性环境配置脚本属于已授权的工具准备，不替代用户实现课程代码。已通过读取 Machine 环境与备份确认持久配置写入；2026-11-15 用户已提供 Git Bash 中练习工程的成功编译、链接和运行日志，退出码为 0。不要要求重复配置已经存在的环境。
 - 生成 `compile_commands.json` 供编辑器工具读取；clangd 可作为跨编辑器语言服务。具体环境步骤见 `docs/DEVELOPMENT.md`。已有 Visual Studio generator 预设仅为初始化参考；Ninja 预设等构建脚本仍由用户实现。
 - Windows 与 Linux 是优先桌面目标；macOS 在 Vulkan 设备初始化阶段评估实际实现和兼容性。移动端暂列后续扩展。
 - Vulkan 1.3 是拟定渲染基线，采用 dynamic rendering 与 synchronization2。SDK 版本、loader 版本和设备能力分别检查。

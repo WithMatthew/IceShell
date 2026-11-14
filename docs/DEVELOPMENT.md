@@ -2,6 +2,8 @@
 
 用户偏好 VS Code 或 Vim/Neovim，并希望方便切换 Windows/Linux。教学主线采用 C++20、CMake 3.25+、Ninja 和命令行。源码、构建描述与编辑器设置分开管理。
 
+当前入口（2026-11-15）：用户最新日志确认使用 Windows Git Bash + MSVC + Ninja / x64 / Debug，练习两次构建运行成功、退出码均为 0。Windows 持久环境已可用，无需重复配置；下方 Linux 内容保留为历史验证。当前 `build/lesson00-linux-debug` 虽带 Linux 名称，其缓存实际为 Windows/MSVC；后续预设使用独立的 `build/lesson00-windows-debug`。
+
 ## 各工具负责什么
 
 | 工具层 | 作用 | 本项目选择 |
@@ -14,9 +16,9 @@
 
 MSVC 编译器可以从终端调用，Visual Studio IDE 不参与课程操作。切到 Linux 后使用相应编译器和系统 SDK，公共 C++ 与 CMake 代码继续复用。跨平台需要各平台实际重新构建和验证，不表示同一个可执行文件到处运行。
 
-## 当前 Linux 环境（2026-11-14 实测）
+## Linux 历史环境（2026-11-14 实测）
 
-用户已切换到 Ubuntu 24.04.5 LTS / x86_64，当前 shell 为 `/usr/bin/zsh`。下列构建命令也适用于 Bash。本课所需工具已可用，无需安装或修改环境变量。
+用户当时使用 Ubuntu 24.04.5 LTS / x86_64，shell 为 `/usr/bin/zsh`。下列命令记录该平台验证，也适用于 Linux Bash；当前 Windows 命令见后续小节与课文。
 
 | 项目 | 本机结果 |
 | --- | --- |
@@ -41,9 +43,9 @@ cmake --build build/lesson00-linux-debug
 
 后续 Vulkan 环境的只读检查：`vulkaninfo --summary` 成功；loader 报告 Instance Version 1.4.313，系统头文件版本为 1.4.313，Khronos validation layer 可枚举，`glslc --version` 可执行并报告 shaderc v2023.8。硬件设备为 Intel Iris Xe Graphics（TGL GT2），设备 API 1.4.318，Mesa 25.2.8；另有 CPU 软件设备 llvmpipe。`VULKAN_SDK` 当前为空，不影响上述系统工具运行。未测试本项目 Vulkan 初始化、绘制、mesh shader 或光追，不将枚举结果当作功能验证，也不将这些独立组件版本合称为一个已验证的 SDK 版本。
 
-当前先使用 GCC，不为 L00 额外安排 Clang 构建矩阵。切换编译器时使用独立构建目录；Windows 缓存与二进制不复制到 Linux 复用。
+当时使用 GCC，未为 L00 额外安排 Clang 构建矩阵。切换编译器时使用独立构建目录；Windows 缓存与二进制不复制到 Linux 复用。
 
-## Windows 配置记录（切回时参考）
+## Windows 配置记录（2026-11-14 本机复验）
 
 用户已明确选择 Windows 系统级持久环境配置：普通 Git Bash、PowerShell 和 cmd 共同继承，不为每种 shell 单独配置启动脚本，也无需每次手动初始化。此处以已安装的 x64 MSVC 和 Windows SDK 为默认工具链。
 
@@ -51,9 +53,13 @@ cmake --build build/lesson00-linux-debug
 
 | 用途 | 目录 |
 | --- | --- |
-| cl.exe、link.exe | `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64` |
+| cl.exe、link.exe | `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.43.34808\bin\Hostx64\x64` |
 | rc.exe、mt.exe | `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64` |
 | Ninja | `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja` |
+
+本次在 `D:\dx12_code\IceShell` 所在 Windows 机器实测：配置前 Machine Path 缺少上述三个目录，Machine INCLUDE、LIB、LIBPATH 为空。已运行现有配置脚本并读回确认四项系统变量写入成功；原值备份为 `build/environment-backups/msvc-system-20261114-235517-086.json`。本机官方开发环境选择 MSVC 工具集 `14.43.34808`，编译器报告 `19.43.34810.0`，Ninja 为 `1.12.1`，不要套用此前机器的工具集版本。
+
+助手仅将读回的系统配置和用户 Path 装入验证进程，分别在 PowerShell 与 Git Bash 登录 shell 中从新目录构建根目录参考工程：`build/windows-env-powershell-20261114`、`build/windows-env-gitbash-20261114`。两者的 CMake + Ninja / x64 / Debug 配置、编译、链接、三行输出均成功，退出码 0，输出未见 warning/error，编译数据库已生成。当时没有复现历史上的 ABI 探测停滞，但未定位历史问题原因。2026-11-15 用户另提供 Git Bash 中练习工程成功构建与运行的日志，确认该终端已可用。
 
 MSVC 构建需要 PATH、INCLUDE 和 LIB 等配套环境。[微软说明](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170#path-and-environment-variables-for-command-line-builds) 按用户的持久配置偏好，准备了 [一次性配置脚本](../tools/configure-msvc-system.ps1)：它运行官方开发环境初始化脚本获取本机实际值，然后仅保存以下四个系统变量。
 
@@ -68,10 +74,10 @@ MSVC 构建需要 PATH、INCLUDE 和 LIB 等配套环境。[微软说明](https:
 
 ### 一次性安装
 
-从开始菜单以“管理员身份运行”打开 PowerShell，执行：
+本次已安装成功，无需重复执行。以后需要更新工具链目录时，从开始菜单以“管理员身份运行”打开 PowerShell，在项目根目录执行：
 
 ```powershell
-powershell.exe -NoProfile -File "D:\Code-dx12\tools\configure-msvc-system.ps1" -Apply
+powershell.exe -NoProfile -File .\tools\configure-msvc-system.ps1 -Apply
 ```
 
 `-Apply` 将配置写入 Windows 的 Machine 系统环境变量，对新启动的两种终端均生效。脚本会先将旧值备份至项目的 `build/environment-backups/`，写入后读回核对；遇到写入错误会尝试恢复旧值。它不会修改 Bash 或 PowerShell 的启动配置。
@@ -81,7 +87,7 @@ powershell.exe -NoProfile -File "D:\Code-dx12\tools\configure-msvc-system.ps1" -
 只查看配置时，省略 `-Apply`；预览无需管理员权限，也不写持久环境：
 
 ```powershell
-powershell.exe -NoProfile -File "D:\Code-dx12\tools\configure-msvc-system.ps1"
+powershell.exe -NoProfile -File .\tools\configure-msvc-system.ps1
 ```
 
 ### 新终端验证
@@ -106,7 +112,7 @@ ninja --version
 
 ### 已验证范围与恢复
 
-已通过脚本语法检查及预览，并在助手的临时进程中应用生成的四项配置，验证工具查找、Ninja 版本、现有参考程序的 cl 编译、链接和运行。随后在继续 L00 时读取系统配置，已确认 Machine Path 中的三个工具目录，以及 INCLUDE、LIB、LIBPATH 均已写入，并找到安装备份。助手没有管理员权限，未直接执行系统写入。用户新终端的完整构建结果仍待反馈；助手此前启动 Git Bash 遇到执行环境限制。
+已通过脚本语法检查、预览、持久配置写入与读回复核，以及助手的 PowerShell/Git Bash 参考工程构建；备份和本机工具版本见上文。2026-11-15 用户亲自用 Git Bash 完成练习编译、链接、运行和名称变体，两次退出码均为 0。更早的权限限制及 ABI 探测记录保留在进度文档历史部分，不代表本次仍有同样问题。
 
 需要撤销时，在管理员 PowerShell 中使用对应的备份文件，恢复上述四项旧值：
 
@@ -150,6 +156,6 @@ Windows 运行 `./build/dev-debug/bin/vle_sandbox.exe`；Linux/macOS 运行 `./b
 
 开启 `CMAKE_EXPORT_COMPILE_COMMANDS` 后，CMake 的 Ninja 生成器会在构建目录生成 `compile_commands.json`，其中包括各源文件的 include 路径、宏和编译参数。该选项不适用于 Visual Studio generator。[CMake 官方说明](https://cmake.org/cmake/help/latest/variable/CMAKE_EXPORT_COMPILE_COMMANDS.html)
 
-clangd 可通过 VS Code、Vim/Neovim 的 LSP 客户端提供语言服务。当前 Linux 已安装 clangd，但尚未核验编辑器是否启用对应 LSP。应指向当前构建目录的编译数据库；例如根目录 `.clangd` 中的 `CompileFlags` → `CompilationDatabase` 可设为 `build/lesson00-linux-debug`，对应当前练习。参考工程则使用 `build/linux-debug`，两者的源文件不同。这只是配置提示，本次未改写编辑器配置。[clangd 使用说明](https://clangd.llvm.org/installation)、[编译数据库配置](https://clangd.llvm.org/config#compilationdatabase)
+clangd 可通过 VS Code、Vim/Neovim 的 LSP 客户端提供语言服务。此前 Linux 已安装 clangd；当前 Windows 的 clangd 和编辑器 LSP 尚未核验。应指向实际使用的构建目录：当前练习为 `build/lesson00-linux-debug`，完成新预设后为 `build/lesson00-windows-debug`；根目录参考工程使用其自己的编译数据库。这只是配置提示，本次未改写编辑器配置。[clangd 使用说明](https://clangd.llvm.org/installation)、[编译数据库配置](https://clangd.llvm.org/config#compilationdatabase)
 
 编译器切换和数据库位置由用户实际构建决定。编辑器中的语法标记与命令行构建结果分别检查；不靠 IDE 自动补全隐式增加 include 路径或链接库。
