@@ -18,7 +18,7 @@
 
 ## 构建与运行
 
-第 0 课只需要 CMake 3.25+ 和支持 C++20 的编译器，无需下载第三方库，也不要求安装 Vulkan SDK。进入 Vulkan 课程时再检查 SDK、驱动和设备能力。
+第 0 课只需要 CMake 3.25+、Ninja 和支持 C++20 的编译器，无需下载第三方库，也不要求安装 Vulkan SDK。进入 Vulkan 课程时再检查 SDK、驱动和设备能力。
 
 ### 命令行主线
 
@@ -31,7 +31,7 @@ cmake --build build/dev-debug
 
 Windows 运行 `./build/dev-debug/bin/vle_sandbox.exe`；Linux/macOS 运行 `./build/dev-debug/bin/vle_sandbox`。切换生成器或工具链时另选构建目录。L00 用户练习的 source/build 路径不同，使用课文命令。
 
-当前 Windows 上已确认 MSVC/Ninja 可发现，但本次 Ninja 配置在编译器 ABI 探测处停滞，已停止该次验证，尚无完整成功结果。它不是源代码错误的结论，也未验证 Linux/macOS 运行。实际状态见进度文档。
+当前已切换到 Linux：2026-11-14 在 Ubuntu 24.04.5 / GCC 13.3.0 / Ninja Debug 下，使用下文 `linux-debug` 预设成功构建并运行参考工程。用户练习位于 `practice/`，使用 `build/lesson00-linux-debug`；配置成功，源码仍待用户完成。Windows 旧 Ninja ABI 探测问题保留为历史记录，macOS 尚未验证。实际学习状态见进度文档。
 
 ### 已有参考预设
 
@@ -65,7 +65,7 @@ cmake --build --preset macos-debug
 ./build/macos-debug/bin/vle_sandbox
 ```
 
-以上 Linux/macOS 命令是待实机验证的入口。当前阶段只验证平台无关的 C++ 骨架；未来 Vulkan-on-Metal 的选择见架构文档。
+以上 Linux 预设已实机验证，macOS 入口仍待验证。当前阶段只验证平台无关的 C++ 骨架；未来 Vulkan-on-Metal 的选择见架构文档。
 
 预期输出：
 

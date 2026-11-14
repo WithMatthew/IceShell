@@ -2,21 +2,25 @@
 
 更新日期：2026-11-14。
 
-## 暂停记录与下次入口
+本次按用户要求保存记录。续学时先读取 `practice/` 的最新代码，再核对下述审查结果；不要把本次快照当作文件仍未修改的证据。本次保存未重新构建、运行或修改课程代码。
 
-**状态：已按用户要求暂停。** 用户于 2026-11-14 要求保留记录，等待用户明确说“继续”后再恢复课程、构建或问题排查。
+下次衔接顺序：确认 `engine_name()` 已补返回值 → 验证名称输出和退出码 → L00.2 的预设、增量构建与链接故障实验 → 验收后进入 L01。用户对依赖传递和生命周期的解释仍待反馈。
 
-- 当前停在 L00.1，实际练习目录为 `practice/`。
-- `practice/CMakeLists.txt` 已按用户明确请求由助手补全，包含静态库、可执行程序、C++20 和依赖传递，并有中文注释。
-- 暂停时只读核对：`practice/include/vle/engine_info.hpp` 和 `practice/src/engine_info.cpp` 已有内容，尚未审查；`practice/src/main.cpp` 仍为空。不要沿用之前“三个 C++ 文件均为空”的旧状态，也不要覆盖用户的新内容。
-- Windows 系统级工具环境已确认写入，Git Bash 与 PowerShell 共用。无需重复安排环境安装或 shell 启动配置。
-- 未解决项：助手执行的 Ninja 配置停在 MSVC 编译器 ABI 探测，相关验证进程已在上次操作中终止；`build/lesson00-debug` 尚无 `build.ninja` 和 `compile_commands.json`。未完成练习程序的构建与运行验收。
-- 下次先读取本记录、课文及用户最新的练习文件，继续讲解和只读审查；由用户完成函数实现及 `main.cpp`。构建时源码路径使用 `-S practice`，构建目录使用 `-B build/lesson00-debug`，保留错误输出再定位 ABI 探测问题。
-- 学习边界保持：代码由用户亲自实现，助手提供关键提示；第一份 CMakeLists 的代写仅是用户明确授权的局部例外。L00 尚未完成，不自动推进 L00.2 或 L01。
+## 当前学习入口
+
+**状态：L00.1 代码审查中，待修正返回值后验收。** 用户反馈已经编译运行并请求 review 和后续安排；追问实际输出后，用户回复“空”。本次已复核当前源码及新目录构建，发现函数仍未返回值。已安排修正后的 L00.2 实践，尚未判定 L00 完成。
+
+- 当前环境：Ubuntu 24.04.5 LTS / x86_64 / zsh；GCC 13.3.0 + CMake 4.4.2 + Ninja 1.11.1。命令默认使用 Linux zsh/Bash 写法。
+- 实际练习目录仍为 `practice/`。第一份 `CMakeLists.txt` 是用户明确请求助手补全的参考，已有中文注释，本次未修改。
+- 只读审查：头文件声明正确；`src/engine_info.cpp` 的 include 已改为 `"vle/engine_info.hpp"`，路径正确，但 `engine_name()` 函数体仍只有 TODO、没有 return；`src/main.cpp` 已实现接口调用、输出和正常退出。
+- Linux 参考工程此前已构建运行。练习在新目录 `build/lesson00-linux-review` 配置、编译、链接均完成，GCC 报告 1 条 `-Wreturn-type` 警告；没有编译错误。本次未执行已知存在未定义行为的练习程序。
+- 接下来由用户在函数体中返回指向字符串字面量的视图，再构建运行并确认输出名称。日常练习仍使用 `-S practice`、`-B build/lesson00-linux-debug`。用户提供的运行输出为“空”，未提供完整运行命令，实际运行路径尚未核对。
+- Windows 的持久环境配置与 ABI 探测停滞保留为历史记录。Linux 未出现该停滞，不代表已定位 Windows 原因；无需为当前课程重复处理 Windows 环境。
+- 学习边界保持：课程代码由用户实现，助手提供提示与审查。本次未修改课程代码或构建脚本。L00.2 的预设、增量构建与链接故障实验已安排，待修正当前问题后由用户执行；L01 尚未开始。
 
 ## 当前结论
 
-**工程状态：助手生成的 P00 / L00 参考骨架曾通过 Windows x64 Debug 的 Visual Studio generator 构建与运行。用户已在 `practice/` 创建练习文件，第一份 CMakeLists 已按明确请求由助手补全；头文件与实现文件已有待审查内容，main.cpp 仍为空。当前 Ninja 配置停在编译器 ABI 探测处，尚未验证完整构建。学习状态：L00.1 已按用户要求暂停，待恢复后继续实现、运行并解释，不将 L00 标为学习完成。**
+**工程状态：L00 参考骨架曾通过 Windows x64 Debug / Visual Studio generator 与 Linux x86_64 / GCC / Ninja Debug 验证。用户练习现已能编译链接，但 engine_name 缺少返回值，存在未定义行为。学习状态：用户已反馈运行且输出为空，代码审查待修正；关键原理解释与变体/故障诊断证据仍待反馈。**
 
 用户已确认熟悉 C++，刚开始学习 Vulkan。讲解按这一基础安排，重点放在图形概念、显式资源管理、同步和系统设计。
 
@@ -36,9 +40,38 @@
 - [x] 依用户要求切换为“用户亲自实现、助手教学审查”，补充 46 课逐课时间和阶段累计时间。
 - [x] 补充开发环境、资产获取约定；重写 L00 的命令行教学和局部代码提示。此次只修改教学文档，未修改课程代码或构建脚本。
 
-代码目前没有窗口、Vulkan 初始化或其他引擎子系统。第三方库均未下载或链接。起始目录为空且不是 Git 仓库；当前没有创建 Git 提交或远程仓库。
+代码目前没有窗口、Vulkan 初始化或其他引擎子系统。第三方库均未接入项目。当前目录已是 Git 仓库，检查时 HEAD 为 `38f4418 first commit`；助手本次没有创建提交或修改远程配置。
 
-## 本次验证证据
+## 本次 Linux 验证与学习证据
+
+检查日期：2026-11-14。以下构建由助手执行，未修改课程源代码或构建脚本。
+
+| 项目 | 结果 |
+| --- | --- |
+| 工具检查 | CMake 4.4.2、Ninja 1.11.1、GCC 13.3.0；Clang/clangd 18.1.3、GDB 15.1；发现 VS Code/Neovim 入口 |
+| `cmake --preset linux-debug` | 成功；GNU 13.3.0，编译器 ABI 探测完成 |
+| `cmake --build --preset linux-debug` | 成功；静态库与程序生成，输出未见 warning/error |
+| `./build/linux-debug/bin/vle_sandbox` | 三行参考输出，退出码 0；仅控制台程序 |
+| 练习配置 | `-S practice -B build/lesson00-linux-debug -G Ninja`，Debug、编译数据库启用；成功 |
+| 练习初次构建 | 当时因 include 路径错误失败；该问题现已由用户修正 |
+| 练习 review 构建 | 新目录 `build/lesson00-linux-review`，GCC / Ninja / Debug；配置、编译、链接成功，1 条 `no return statement in function returning non-void [-Wreturn-type]` 警告 |
+| 练习运行 | 用户反馈输出“空”；完整执行命令与退出码未提供。助手此次未执行缺少返回值的版本；名称输出验收未通过 |
+| 生成文件 | 两个目录均已生成 `build.ninja` 和 `compile_commands.json`；练习数据库可见 `-std=c++20` 和传递到两个源文件的 include 根目录 |
+| Vulkan 环境查询 | `vulkaninfo --summary` 成功；Instance Version 1.4.313，系统头文件 1.4.313，validation layer 可枚举；glslc 可执行 |
+| Vulkan 设备 | Intel Iris Xe（TGL GT2），API 1.4.318，Mesa 25.2.8；另有 CPU 软件设备 llvmpipe。本项目尚无 Vulkan 初始化或绘制验证 |
+| 其他配置 | 未构建 Linux Release、Clang 或 macOS；未检查编辑器 LSP 配置 |
+
+| 学习证据 | 当前状态 |
+| --- | --- |
+| 用户亲自实现并运行 | 已修正 include、编写函数框架与 main；反馈已编译运行且输出为空。函数仍缺少 return，待修正后验证名称输出 |
+| 用户解释关键数据流与取舍 | 待反馈：声明/定义/链接、PUBLIC/PRIVATE、string_view 生命周期 |
+| 用户完成小变体或故障诊断 | include 错误已在提示后修正；缺少 return 由助手审查定位。增量构建与链接故障实验尚未执行 |
+
+已将 [Lesson 00](lessons/00-project-foundation.md) 更新为本次审查结果，并细化 L00.2：用户创建练习预设、修改字面量观察增量构建、临时移除整个函数定义观察链接错误并恢复。当前先修正 L00.1 返回值，再进入上述练习，之后衔接 L01 的 SDL3 窗口与事件。
+
+## Windows 历史验证证据
+
+以下为切换到 Linux 之前的记录，版本与路径不代表当前机器。
 
 | 项目 | 结果 |
 | --- | --- |
@@ -47,7 +80,7 @@
 | `cmake --build --preset windows-debug` | 成功；生成静态库与可执行程序；本次输出未见编译警告 |
 | `build/windows-vs2022/bin/Debug/vle_sandbox.exe` | 输出第 0 课三行信息；退出码 0 |
 | Windows Release | 提供构建预设，尚未执行 |
-| Linux / macOS | 提供构建预设，尚未实机执行 |
+| Linux / macOS（当时） | 当时仅有预设；Linux 后续验证见上节，macOS 仍未执行 |
 | Vulkan GPU 运行 | 仅执行环境查询，尚未运行本项目的图形路径 |
 
 环境检查检测到 CMake 4.2.3、Visual Studio 2022 C++ 工具集和 Vulkan SDK 1.4.335.0。`vulkaninfo --summary` 正常返回，列出 Khronos validation layer、Intel Arc 140T GPU 和 NVIDIA RTX PRO 2000 Blackwell Generation Laptop GPU。上述检测只证明工具和枚举可用，尚未逐项验证 mesh shader 或光追能力。
@@ -56,7 +89,9 @@
 
 已检测到 VS Code 与 Vim；未在 PATH 和已检查的常用位置发现 Clang/clangd。没有安装新编译器或编辑器插件，没有修改持久环境变量。未为固定字符串输出添加单元测试；CPU 算法出现后再加入针对真实行为的测试。
 
-## 当前实践任务
+## Windows 阶段实践历史
+
+以下按此前反馈保留；当前目录、构建命令和待办以上方“当前学习入口”为准。
 
 用户已反馈 Windows Git Bash 中 `ninja --version` 报 `command not found`，`Get-Command cl` 也报命令不存在。已明确：前者是当前 PATH 未找到本机已安装工具，后者是混用了 PowerShell 内建命令。课文已增加 Git Bash 入口、`command -v` 检查，以及带 MSVC 环境的 Bash 子 shell 启动步骤。
 
@@ -95,15 +130,15 @@ L01：创建第一个跨平台窗口。
 ## 学习反馈与待确认事项
 
 - 学习基础：已确认“熟悉 C++，刚开始学 Vulkan”。
-- L00 参考骨架的编译运行由助手执行；用户亲自实现、运行、解释和诊断问题的学习证据尚无反馈。
+- L00 参考骨架的编译运行由助手执行；用户已反馈运行自己的练习且输出为空。审查发现函数缺少返回值；正确输出、关键原理解释和独立故障诊断仍待验收。
 - 学习方式已确认：用户写代码，助手教学与审查；用户明确要求时才提供具体参考实现。
 - 核心代码提示已授权，助手应主动提供局部片段；整课实现仍由用户组织。
 - 资产获取分工已确认，当前无外部资产下载需求。
 - 编辑器偏好已确认：VS Code 或 Vim，避免依赖 Visual Studio IDE，命令行构建优先。
-- 当前 shell 已确认：Windows Git Bash；命令示例需标注对应 shell，并优先提供 Bash 写法。
+- 当前 shell 已确认：Linux zsh；命令示例优先兼容 zsh/Bash。Windows Git Bash 属于此前环境。
 - 全路线初估 524–829 小时；加入约 20% 的额外复习与返工余量后按 630–1,000 小时排期。这是规划估计，不是用户已投入时间或掌握承诺。
 - 每周可投入时间尚待反馈；L06 后依据真实学习记录调整估计。
-- 暂按 Windows 本机开发、Linux 优先兼容、macOS 评估兼容推进；具体第二平台和硬件可在需要时调整。
+- 当前使用 Linux 本机开发，Windows/Linux 均为优先桌面目标，macOS 仍待评估兼容性。
 - 引擎名称暂为 Vulkan Learning Engine，可随时更名。
 
 以后每课继续补充真实验证证据与学习反馈，保持“已实现”“已验证”“待学习”三者分开。

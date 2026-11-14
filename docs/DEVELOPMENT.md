@@ -14,7 +14,36 @@
 
 MSVC 编译器可以从终端调用，Visual Studio IDE 不参与课程操作。切到 Linux 后使用相应编译器和系统 SDK，公共 C++ 与 CMake 代码继续复用。跨平台需要各平台实际重新构建和验证，不表示同一个可执行文件到处运行。
 
-## Windows 当前机器
+## 当前 Linux 环境（2026-11-14 实测）
+
+用户已切换到 Ubuntu 24.04.5 LTS / x86_64，当前 shell 为 `/usr/bin/zsh`。下列构建命令也适用于 Bash。本课所需工具已可用，无需安装或修改环境变量。
+
+| 项目 | 本机结果 |
+| --- | --- |
+| CMake | 4.4.2，`/usr/local/bin/cmake` |
+| Ninja | 1.11.1，`/usr/bin/ninja` |
+| 当前编译器 | GCC 13.3.0，CMake 选择 `/usr/bin/c++` |
+| 备选编译器 / 语言服务 | Clang 18.1.3 / clangd 18.1.3 |
+| 调试器 / 版本控制 | GDB 15.1 / Git 2.43.0 |
+| 编辑器入口 | 已发现 `code` 与 `nvim`；未检查编辑器插件配置 |
+| CPU / 内存 | Intel Core i7-1185G7，4 核 8 线程；系统报告内存 15 GiB |
+
+已从新构建目录运行 `cmake --preset linux-debug`、`cmake --build --preset linux-debug` 和 `./build/linux-debug/bin/vle_sandbox`：参考工程编译、链接、三行输出均成功，退出码为 0，构建输出未见 warning/error。
+
+用户练习采用独立目录：
+
+```sh
+cmake -S practice -B build/lesson00-linux-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/lesson00-linux-debug
+```
+
+练习已成功配置并生成 Ninja 规则与编译数据库。初次构建的头文件路径问题已由用户修正，`main.cpp` 也已补齐；最新 review 在新目录 `build/lesson00-linux-review` 中编译链接成功，但 `engine_name()` 缺少返回值，GCC 报告 `-Wreturn-type` 警告，仍待用户修正后验收输出。当前 Linux 的编译器 ABI 探测成功，Windows 旧问题的原因仍未定位。
+
+后续 Vulkan 环境的只读检查：`vulkaninfo --summary` 成功；loader 报告 Instance Version 1.4.313，系统头文件版本为 1.4.313，Khronos validation layer 可枚举，`glslc --version` 可执行并报告 shaderc v2023.8。硬件设备为 Intel Iris Xe Graphics（TGL GT2），设备 API 1.4.318，Mesa 25.2.8；另有 CPU 软件设备 llvmpipe。`VULKAN_SDK` 当前为空，不影响上述系统工具运行。未测试本项目 Vulkan 初始化、绘制、mesh shader 或光追，不将枚举结果当作功能验证，也不将这些独立组件版本合称为一个已验证的 SDK 版本。
+
+当前先使用 GCC，不为 L00 额外安排 Clang 构建矩阵。切换编译器时使用独立构建目录；Windows 缓存与二进制不复制到 Linux 复用。
+
+## Windows 配置记录（切回时参考）
 
 用户已明确选择 Windows 系统级持久环境配置：普通 Git Bash、PowerShell 和 cmd 共同继承，不为每种 shell 单独配置启动脚本，也无需每次手动初始化。此处以已安装的 x64 MSVC 和 Windows SDK 为默认工具链。
 
@@ -90,7 +119,7 @@ foreach ($msvcVariable in @('Path', 'INCLUDE', 'LIB', 'LIBPATH')) {
 
 恢复后同样重新启动终端宿主。课程实现仍由用户完成；此脚本仅处理用户明确要求的本机工具环境。
 
-## Linux / macOS
+## 其他 Linux / macOS 机器
 
 准备 CMake、Ninja 和支持 C++20 的编译器。Linux 可以使用发行版包管理器提供的 GCC 或 Clang；macOS 使用 Command Line Tools 提供的工具链。版本和安装命令在目标机器上核验，不要求现在就安装另一个平台。
 
@@ -121,6 +150,6 @@ Windows 运行 `./build/dev-debug/bin/vle_sandbox.exe`；Linux/macOS 运行 `./b
 
 开启 `CMAKE_EXPORT_COMPILE_COMMANDS` 后，CMake 的 Ninja 生成器会在构建目录生成 `compile_commands.json`，其中包括各源文件的 include 路径、宏和编译参数。该选项不适用于 Visual Studio generator。[CMake 官方说明](https://cmake.org/cmake/help/latest/variable/CMAKE_EXPORT_COMPILE_COMMANDS.html)
 
-clangd 可通过 VS Code、Vim/Neovim 的 LSP 客户端提供语言服务。安装并启用后，应指向当前构建目录的编译数据库；例如可在项目根目录的 `.clangd` 配置中指定 `CompileFlags` 下的 `CompilationDatabase: build/dev-debug`。这只是配置提示，当前未安装 clangd 或改写编辑器配置。[clangd 使用说明](https://clangd.llvm.org/installation)、[编译数据库配置](https://clangd.llvm.org/config#compilationdatabase)
+clangd 可通过 VS Code、Vim/Neovim 的 LSP 客户端提供语言服务。当前 Linux 已安装 clangd，但尚未核验编辑器是否启用对应 LSP。应指向当前构建目录的编译数据库；例如根目录 `.clangd` 中的 `CompileFlags` → `CompilationDatabase` 可设为 `build/lesson00-linux-debug`，对应当前练习。参考工程则使用 `build/linux-debug`，两者的源文件不同。这只是配置提示，本次未改写编辑器配置。[clangd 使用说明](https://clangd.llvm.org/installation)、[编译数据库配置](https://clangd.llvm.org/config#compilationdatabase)
 
 编译器切换和数据库位置由用户实际构建决定。编辑器中的语法标记与命令行构建结果分别检查；不靠 IDE 自动补全隐式增加 include 路径或链接库。
