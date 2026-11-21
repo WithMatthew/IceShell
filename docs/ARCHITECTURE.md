@@ -2,6 +2,8 @@
 
 本文是设计方向，不是已实现能力清单。当前只有 `vle_core` 和 `vle_sandbox`，之后由实际课程需求逐步增加模块。
 
+2026-11-21 课程顺序调整为 Vulkan 优先：从无窗口的 Instance、验证层和设备枚举开始，SDL3 随 Surface 引入，输入随相机引入；日志、错误处理和对象所有权随 Vulkan 对象展开。模块表保留长期边界，不要求先实现完整 Core/Platform 再调用 Vulkan。
+
 开发方式采用编辑器无关的命令行 CMake + Ninja：VS Code 或 Vim/Neovim 负责编辑，Windows/Linux 使用各自工具链重新构建。公共源码优先标准 C++ 与跨平台库；系统差异集中在 Platform 和工具链配置中。环境步骤见 [开发环境](DEVELOPMENT.md)。
 
 ## 模块与数据流
@@ -70,8 +72,8 @@ macOS 需要单独验证 Vulkan-on-Metal 实现，不能只从操作系统名称
 
 | 方案 | 引入阶段 | 教学用途 |
 | --- | --- | --- |
-| [SDL3](https://wiki.libsdl.org/SDL3/README-cmake) | P01 | 窗口和输入；用官方 CMake target 管理链接 |
-| Vulkan SDK / GLSL / glslc | P02 | API 头文件、验证层和 shader 编译；学习显式对象与同步 |
+| [SDL3](https://wiki.libsdl.org/SDL3/README-cmake) | L04.2；输入在 L09 扩展 | 为 Vulkan Surface 提供最小窗口与事件；接入时固定版本与许可 |
+| Vulkan SDK / GLSL / glslc | L04.1 接入 API 与验证层；L06 接入 shader 编译 | 学习显式对象与同步；构建修改随对应功能引入 |
 | [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) | P03 | 理解内存类型、绑定和 staging 后，接入成熟分配器 |
 | [GLM](https://github.com/g-truc/glm) | P03 | 数学计算；明确项目坐标与深度约定 |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | P04 | 解析 glTF；自行实现到引擎 mesh/material/scene 数据的转换 |

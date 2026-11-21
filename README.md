@@ -6,15 +6,17 @@
 
 **学习方式：代码由你亲自实现；助手负责原理讲解、任务拆解、核心代码提示、代码审查和调试指导。** 关键环节主动提供函数签名、局部调用或 TODO 片段；整课参考实现按你的明确请求提供。初始化生成的第 0 课骨架属于参考示例，其构建通过不代表你已经完成该课。
 
+2026-11-21 已按用户反馈改为 **Vulkan 优先**：默认具备 C++ 基础，取消独立编译链接练习和基础问答；构建调整只在当前 Vulkan 功能需要时说明。L00 已有实践保留，未做内容按要求跳过。L01–L03 的窗口、输入、日志等配套并入实际使用它们的课程。
+
 开发主线采用 **VS Code 或 Vim + 命令行 CMake/Ninja**。Windows 可使用现有 MSVC 编译器，无需打开 Visual Studio IDE；Linux 使用 GCC 或 Clang。助手按课程需要获取外部资产并记录许可与来源。
 
 ## 从这里开始
 
-1. 阅读 [第 0 课：构建第一个程序](docs/lessons/00-project-foundation.md)，亲自完成实现任务并运行。
-2. 浏览 [完整教学路线](docs/ROADMAP.md)，查看 46 课名称、估计学习时间和依赖关系。
+1. 从 [L04.1：Vulkan Instance、验证层与设备枚举](docs/lessons/04-vulkan-bootstrap.md) 开始。当前状态是课文与任务已准备，用户尚未实现项目内的 Vulkan 路径。
+2. 浏览 [调整后的教学路线](docs/ROADMAP.md)，查看实际执行顺序、估计学习时间和依赖关系；保留历史课号以方便导航。
 3. 用 [学习进度](docs/PROGRESS.md) 衔接下一次学习；说“继续”时，助手继续讲解或布置任务，由你完成代码。
 
-[开发环境](docs/DEVELOPMENT.md) 给出工具准备与编辑器配置方向；[资产记录](docs/ASSETS.md) 说明获取分工；[架构与技术选择](docs/ARCHITECTURE.md) 解释模块边界；[AGENTS.md](AGENTS.md) 规定后续协作方式。
+[第 0 课](docs/lessons/00-project-foundation.md) 和[开发环境](docs/DEVELOPMENT.md) 保留为按需参考；[资产记录](docs/ASSETS.md) 说明获取分工；[架构与技术选择](docs/ARCHITECTURE.md) 解释模块边界；[AGENTS.md](AGENTS.md) 规定后续协作方式。
 
 ## 构建与运行
 
@@ -31,11 +33,11 @@ cmake --build build/dev-debug
 
 Windows 运行 `./build/dev-debug/bin/vle_sandbox.exe`；Linux/macOS 运行 `./build/dev-debug/bin/vle_sandbox`。切换生成器或工具链时另选构建目录。L00 用户练习的 source/build 路径不同，使用课文命令。
 
-当前已切换到 Linux：2026-11-14 在 Ubuntu 24.04.5 / GCC 13.3.0 / Ninja Debug 下，使用下文 `linux-debug` 预设成功构建并运行参考工程。用户练习位于 `practice/`，使用 `build/lesson00-linux-debug`；配置成功，源码仍待用户完成。Windows 旧 Ninja ABI 探测问题保留为历史记录，macOS 尚未验证。实际学习状态见进度文档。
+当前为 Windows Git Bash + MSVC + Ninja。2026-11-21 用户的 `practice/` 练习已通过 `lesson00-debug` 预设构建运行，目录为 `build/lesson00-windows-debug`。后续 Vulkan 课程在主工程的 `samples/sandbox/` 继续，使用课文指定的新构建目录。2026-11-14 的 Linux 参考工程验证独立保留，macOS 尚未验证。实际学习状态见进度文档。
 
 ### 已有参考预设
 
-以下预设保留初始化时的状态，由用户在 L00 中理解并按需要调整。Windows Visual Studio generator 预设曾通过命令行构建，不要求启动 IDE，但后续课程主线使用 Ninja：
+以下预设保留初始化时的状态，按具体课程需要调整，不再安排独立预设练习。Windows Visual Studio generator 预设曾通过命令行构建，不要求启动 IDE，但后续课程主线使用 Ninja：
 
 ```powershell
 cmake --preset windows-vs2022
@@ -74,6 +76,8 @@ Vulkan Learning Engine
 Lesson 00: build and link succeeded.
 Next: Lesson 01 - window and event loop.
 ```
+
+上述文字是现有参考源码的实际输出；其中旧的下一课提示未修改。当前学习入口以本文和进度文档中的 L04.1 为准。
 
 ## 目录
 

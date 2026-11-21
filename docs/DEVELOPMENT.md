@@ -2,7 +2,7 @@
 
 用户偏好 VS Code 或 Vim/Neovim，并希望方便切换 Windows/Linux。教学主线采用 C++20、CMake 3.25+、Ninja 和命令行。源码、构建描述与编辑器设置分开管理。
 
-当前入口（2026-11-15）：用户最新日志确认使用 Windows Git Bash + MSVC + Ninja / x64 / Debug，练习两次构建运行成功、退出码均为 0。Windows 持久环境已可用，无需重复配置；下方 Linux 内容保留为历史验证。当前 `build/lesson00-linux-debug` 虽带 Linux 名称，其缓存实际为 Windows/MSVC；后续预设使用独立的 `build/lesson00-windows-debug`。
+当前入口（2026-11-21）：Windows Git Bash + MSVC + Ninja / x64 / Debug；练习预设已使用 `build/lesson00-windows-debug` 并通过用户运行反馈。缓存确认 MSVC `19.44.35222.0`（工具集 `14.44.35207`）。持久环境沿用既有配置；下方环境路径与版本按各自日期作为历史记录。课程现直接进入 [Vulkan L04.1](lessons/04-vulkan-bootstrap.md)，本文仅在用户询问或具体接入遇到问题时查阅，不作为必修前置。
 
 ## 各工具负责什么
 
@@ -156,6 +156,25 @@ Windows 运行 `./build/dev-debug/bin/vle_sandbox.exe`；Linux/macOS 运行 `./b
 
 开启 `CMAKE_EXPORT_COMPILE_COMMANDS` 后，CMake 的 Ninja 生成器会在构建目录生成 `compile_commands.json`，其中包括各源文件的 include 路径、宏和编译参数。该选项不适用于 Visual Studio generator。[CMake 官方说明](https://cmake.org/cmake/help/latest/variable/CMAKE_EXPORT_COMPILE_COMMANDS.html)
 
-clangd 可通过 VS Code、Vim/Neovim 的 LSP 客户端提供语言服务。此前 Linux 已安装 clangd；当前 Windows 的 clangd 和编辑器 LSP 尚未核验。应指向实际使用的构建目录：当前练习为 `build/lesson00-linux-debug`，完成新预设后为 `build/lesson00-windows-debug`；根目录参考工程使用其自己的编译数据库。这只是配置提示，本次未改写编辑器配置。[clangd 使用说明](https://clangd.llvm.org/installation)、[编译数据库配置](https://clangd.llvm.org/config#compilationdatabase)
+clangd 可通过 VS Code、Vim/Neovim 的 LSP 客户端提供语言服务。2026-11-21 已只读核验当前 Windows 配置：LazyVim 使用 `clangd-msvc.cmd` 启动 MSYS2 clangd 23.1.5；主工程的编译数据库位于 `build/vulkan-windows-debug/compile_commands.json`。L00 的 `build/lesson00-windows-debug` 只对应 `practice/`，不能代替主工程数据库。[clangd 使用说明](https://clangd.llvm.org/installation)、[编译数据库配置](https://clangd.llvm.org/config#compilationdatabase)
+
+当次使用相同启动入口执行 `clangd --check`：默认未找到主工程数据库，使用 fallback 参数，`samples/sandbox/main.cpp` 出现 2 个错误；显式指定 `--compile-commands-dir=D:/Code-dx12/build/vulkan-windows-debug` 后，读到 MSVC 编译命令、引擎及 Vulkan include 路径，检查为 0 个错误。这是语言服务检查，不是项目 Vulkan 运行或编辑器界面补全验收。
+
+用户已在根目录创建以下 `.clangd`，让当前主工程源码读取这个数据库（路径相对于 `.clangd`）；限定目录以免把历史 `practice/` 误指向主工程：
+
+```yaml
+If:
+  PathMatch: (engine|samples)/.*
+CompileFlags:
+  CompilationDatabase: build/vulkan-windows-debug
+```
+
+用户已将 `engine/src/core/IceVulkan.cpp` 加入 `vle_core` 的源文件列表，并添加 `target_link_libraries(vle_core PUBLIC Vulkan::Vulkan)`；公开头文件 `IceVulkan.hpp` 已包含 Vulkan 头文件。仅给 Sandbox 声明依赖不会将 include 路径反向传给 `vle_core`。
+
+用户应用上述修改后仍遇到头文件找不到：当时数据库仍是修改前的旧版本。助手执行 `cmake -S . -B build/vulkan-windows-debug` 成功更新数据库，再对 `IceVulkan.hpp` 运行 clangd 检查，结果从找不到 `<vulkan/vulkan.h>` 变为 0 个错误。修改 CMake 后需要重新配置生成数据库；若 Neovim 仍保留旧诊断，在对应文件中执行 `:lsp restart clangd`。实际界面补全效果待用户反馈。
+
+本机已核验为 Neovim 0.12.6，内置小写 `:lsp` 命令；可用 `:help :lsp-restart` 查看帮助。当前 `nvim-lspconfig` 检测到内置 `:lsp` 后，会跳过旧的 `:LspRestart` 等插件命令注册。因此本机应使用上述内置命令；此前给出的 `:LspRestart` 不适用于当前配置。
+
+此前日志中的 `--function-arg-placeholders` 参数值无效问题，用户已在 `lua/plugins/languages.lua` 中改为 `--function-arg-placeholders=true`。助手未改写项目构建、源码或用户编辑器配置，仅执行上述配置生成与语言服务检查。
 
 编译器切换和数据库位置由用户实际构建决定。编辑器中的语法标记与命令行构建结果分别检查；不靠 IDE 自动补全隐式增加 include 路径或链接库。
