@@ -1,11 +1,10 @@
+#include <iostream>
+#include <vle/core/IceVulkan.hpp>
 #include <vle/core/engine_info.hpp>
 
-#include <iostream>
+using namespace vle;
 
-int main()
-{
-    std::cout << vle::engine_name() << '\n'
-              << "Lesson 00: build and link succeeded.\n"
-              << "Next: Lesson 01 - window and event loop.\n";
-    return 0;
+int main() {
+  auto vk_instance = IceVulkan();
+  return 0;
 }

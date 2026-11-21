@@ -1,6 +1,6 @@
 # L04.1：Vulkan Instance、验证层与设备枚举
 
-这是 2026-11-21 调整后的当前课程入口。默认你具备 C++ 经验；本课聚焦 Vulkan 对象和调用顺序。课文与局部提示已准备，项目内的 Vulkan 实现仍由你完成，尚未通过本课运行验收。
+这是 2026-11-21 调整后的当前课程入口。默认你具备 C++ 经验；本课聚焦 Vulkan 对象和调用顺序。用户已亲自实现 Instance 创建与销毁初版，并反馈正常路径退出码为 0；验证层配置、失败路径与唯一所有权尚待修正，本课整体验收仍未完成。最新证据见 [进度记录](../PROGRESS.md)。
 
 ## 本课解决什么问题
 
@@ -25,9 +25,13 @@
 
 这只是外部工具查询结果，不能代替你自己的初始化程序，也不能证明设备的 dynamic rendering、synchronization2、mesh shader 或光追 feature 已查询并启用。设备选择和 feature 检查在 L04.3 展开。
 
-本课在主工程的 `samples/sandbox/main.cpp` 编写最小探针；`practice/` 保留为之前的练习记录。探针属于示例入口，暂不预先设计渲染器框架。L04.3 形成持续使用的 Instance/Device 所有权后，再把对应引擎实现移入 `engine/`。
+本课沿用用户已建立的 `engine/include/vle/core/IceVulkan.hpp` 与 `engine/src/core/IceVulkan.cpp`，由主工程的 `samples/sandbox/main.cpp` 调用；`practice/` 保留为之前的练习记录。用户已选择用 `IceVulkan` 类负责 Instance 创建与销毁，继续沿用该封装，明确空状态、失败传播与唯一所有权，暂不预先设计渲染器框架。L04.3 形成持续使用的 Instance/Device 所有权后，再按实际需求调整封装。
+
+2026-11-21 恢复学习时，当前小步仅为 Instance 创建与销毁：填写应用信息与创建配置，启用 validation layer，检查 `vkCreateInstance` 的结果，在成功路径销毁 Instance。先利用上方已有的本机 loader/layer 查询记录理解这条路径；用户程序自己的能力查询、debug messenger 与设备枚举在本课后续逐步补齐。这一小步成功不代表整课验收通过。
 
 ## 本课需要的构建调整
+
+以下为已完成的接入记录：用户已为 Sandbox 和 `vle_core` 接入 `Vulkan::Vulkan`，并将 `IceVulkan.cpp` 加入 `vle_core`；编译数据库已更新。本次续学沿用现有配置，下面的最初接入说明无需重复执行。
 
 原因只有一个：Sandbox 开始调用 Vulkan API，需要 SDK 头文件和 loader 链接库。以下是由你修改的两处局部配置，不是独立 CMake 练习：
 
