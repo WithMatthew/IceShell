@@ -1,6 +1,6 @@
 # L04.1：Vulkan Instance、验证层与设备枚举
 
-这是 2026-11-21 调整后的当前课程入口。默认你具备 C++ 经验；本课聚焦 Vulkan 对象和调用顺序。2026-11-22 用户已补齐验证层请求、创建失败后的空状态保护与禁止复制，助手已完成 Windows Debug 增量构建和正常运行，退出码为 0。失败日志仍需补充实际错误码，能力查询、messenger、设备枚举及整课验收尚未完成。最新证据见 [进度记录](../PROGRESS.md)。
+用户已实现 Instance 创建、销毁、失败日志和创建前的验证层检查。本步查询并启用实例扩展 `VK_EXT_debug_utils`，之后接入 messenger 与设备枚举。[进度记录](../PROGRESS.md)
 
 ## 本课解决什么问题
 
@@ -68,7 +68,53 @@ target_link_libraries(vle_sandbox PRIVATE Vulkan::Vulkan)
 5. 用 `vkEnumeratePhysicalDevices` 获取设备列表；逐个调用 `vkGetPhysicalDeviceProperties`，至少打印 `deviceName`、`deviceType`、`apiVersion`。本课不按品牌选卡，也不选择第一个枚举条目就宣称满足渲染要求。
 6. 覆盖创建中途失败的清理路径；只销毁成功创建的对象。本课没有 Device 或 GPU 工作，不需要加入 GPU 等待调用。
 
-枚举通常先查数量，再提供数组接收结果。对返回 `VkResult` 的枚举检查状态；若填充阶段返回 `VK_INCOMPLETE`，重新查询数量并重试。最终按实际写入数量使用结果，设备数量为 0 时输出清楚的诊断。[设备枚举规则](https://docs.vulkan.org/refpages/latest/refpages/source/vkEnumeratePhysicalDevices.html)
+枚举通常先查数量，再提供数组接收结果。填充阶段返回 `VK_INCOMPLETE` 表示只写入了部分条目。应用若要取得完整列表，可以重新查数量并重试。成功后按实际写入数量使用结果，设备数量为 0 时输出清楚的诊断。[设备枚举规则](https://docs.vulkan.org/refpages/latest/refpages/source/vkEnumeratePhysicalDevices.html)
+
+## 创建 Instance 前检查验证层
+
+在 `engine/src/core/IceVulkan.cpp` 的 `InitVulkan()` 开头查找 `IceVulkanLayers[0]`。此时可以直接调用 `vkEnumerateInstanceLayerProperties`，它向 loader 查询当前可用的实例层，无需传入 Instance 句柄。数组里的名称是应用想启用的层，返回的 `VkLayerProperties::layerName` 是当前可用的层名。[实例层枚举](https://docs.vulkan.org/refpages/latest/refpages/source/vkEnumerateInstanceLayerProperties.html) · [VkLayerProperties](https://docs.vulkan.org/refpages/latest/refpages/source/VkLayerProperties.html)
+
+```cpp
+uint32_t layer_count = 0;
+VkResult layer_result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+// TODO 检查查询结果。查询成功且数量为零时，直接报告缺少请求的层。
+
+std::vector<VkLayerProperties> layers(layer_count);
+layer_result = vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
+// TODO 处理返回码，再用实际写入的条目查找层名。
+```
+
+1. 第一次调用写回可用层数。第二次调用前，`layer_count` 是数组可容纳的条目数，返回后它是实际写入数。本阶段的验证层检查在 `VK_INCOMPLETE` 时打印返回码并结束初始化。若以后需要自动恢复，可以重新查数量、分配并填充。任一调用返回错误时，也应保留实际 `VkResult`。
+2. 填充成功后调用 `layers.resize(layer_count)`，按字符串内容比较 `layer.layerName` 和 `IceVulkanLayers[0]`。可以用 `std::string_view{layer.layerName} == IceVulkanLayers[0]`。若使用示例中的类型，引入 `<vector>` 和 `<string_view>`。这些属性只需存在于本次查询期间。
+3. 找到验证层就继续用现有的 `ppEnabledLayerNames` 请求启用它，并检查 `vkCreateInstance` 自己的结果。完整列表中缺少所需层时，输出具体层名并从 `InitVulkan()` 返回 `false`。枚举成功表示取得了可用列表，列表可以恰好不含目标层。
+
+验收时沿用下方的两组 Git Bash 命令。正常启动应走到创建、销毁并退出 `0`。为单次启动设置 `VK_LAYER_PATH=./samples/sandbox` 后，应在调用 `vkCreateInstance` 之前报告缺少 `VK_LAYER_KHRONOS_validation`，退出 `1`。
+
+## 查询并启用实例扩展
+
+验证层检查 Vulkan 调用的用法。`VK_EXT_debug_utils` 提供调试接口，下一步会用它创建 messenger，把诊断消息交给程序的回调。本步的目标是让创建成功的 Instance 启用这个扩展。本机 `vulkaninfo --summary` 已在实例扩展列表中列出 `VK_EXT_debug_utils`，revision 为 2。[调试扩展说明](https://docs.vulkan.org/refpages/latest/refpages/source/VK_EXT_debug_utils.html)
+
+在 `IceVulkan::InitVulkan()` 中，把扩展查询放在验证层检查通过之后、填写 `VkInstanceCreateInfo` 之前。在函数作用域定义请求的名称，供查找和创建共用。
+
+```cpp
+constexpr const char* required_extensions[] = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
+uint32_t available_count = 0;
+VkResult ext_ret = vkEnumerateInstanceExtensionProperties(nullptr, &available_count, nullptr);
+// TODO 检查返回码。查询成功且数量为零时，报告缺少的扩展并返回 false。
+
+std::vector<VkExtensionProperties> available_extensions(available_count);
+ext_ret = vkEnumerateInstanceExtensionProperties(nullptr, &available_count,
+                                                 available_extensions.data());
+// TODO 检查返回码，按实际写入数限定查找范围。
+```
+
+第一个参数选择从哪里查。传 `nullptr` 时，返回 Vulkan 实现及隐式启用层提供的实例扩展。要查某个显式层单独提供的扩展，可以传入它的层名。最后一个参数选择只取数量还是填充数组。两次调用都沿用现有的结果检查，非 `VK_SUCCESS` 时报告调用名和实际返回码并退出。[实例扩展枚举](https://docs.vulkan.org/refpages/latest/refpages/source/vkEnumerateInstanceExtensionProperties.html)
+
+复用已有的 `std::find_if` 写法。对 `required_extensions` 中的每个名字，用 `VkExtensionProperties::extensionName` 做字符串内容比较。若在本次全局列表中找不到，打印缺少的名称并从初始化返回 `false`。[扩展属性](https://docs.vulkan.org/refpages/latest/refpages/source/VkExtensionProperties.html)
+
+把 `vk_create_info.enabledExtensionCount` 设为 `static_cast<uint32_t>(std::size(required_extensions))`，把 `vk_create_info.ppEnabledExtensionNames` 指向 `required_extensions`。名称数组须在 `vkCreateInstance` 调用期间有效。成功后按这份数组打印启用的扩展名。这次请求 1 个扩展，系统可枚举的扩展数量由 `available_count` 给出。[Instance 创建配置](https://docs.vulkan.org/refpages/latest/refpages/source/VkInstanceCreateInfo.html)
+
+从仓库根目录运行下方的 Git Bash 构建与运行命令。预期能看到创建成功、已启用 `VK_EXT_debug_utils`、销毁成功并退出 `0`。可选自检是将请求数组里的名字暂时换成一个不存在的名字，重新构建后应在创建前点名缺少的扩展并退出 `1`，然后恢复原名。
 
 ## 核心 API 提示
 
@@ -132,10 +178,9 @@ const auto create_messenger =
 
 ## 构建与运行
 
-完成你的实现后，在 Windows Git Bash 中逐条执行，上一条成功后再继续：
+从主工程根目录在 Windows Git Bash 中运行。当前工作目录是 `/d/dx12_code/IceShell`，这里已完成首次配置。修改源码后从 `cmake --build` 开始即可。
 
 ```bash
-cd /d/Code-dx12
 cmake -S . -B build/vulkan-windows-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build/vulkan-windows-debug
 ./build/vulkan-windows-debug/bin/vle_sandbox.exe
@@ -143,6 +188,22 @@ echo $?
 ```
 
 这是主工程的新构建目录；不使用 `practice/` 的 L00 预设。Linux 使用独立的新目录并去掉 `.exe`，当前没有本课 Linux 实测结果。macOS 的 portability 要求在具体接入时单独核验，不将 Windows 运行等同于跨平台通过。
+
+### 验证层缺失与可见时的对照运行
+
+在普通权限的 Git Bash 中，从项目根目录运行同一个程序两次。
+
+```bash
+VK_LAYER_PATH=./samples/sandbox ./build/vulkan-windows-debug/bin/vle_sandbox.exe
+echo $?
+
+./build/vulkan-windows-debug/bin/vle_sandbox.exe
+echo $?
+```
+
+第一条命令让 loader 只到 `samples/sandbox` 查找显式 layer 清单。该目录只含示例源码和构建描述，所以这次启动找不到应用请求的验证层。命令前的变量赋值仅对这次启动生效。[Khronos Loader 的环境变量说明](https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderInterfaceArchitecture.md#active-environment-variables)
+
+上一步已验证直接请求缺失的层时，`vkCreateInstance` 返回 `-6`（`VK_ERROR_LAYER_NOT_PRESENT`）。加入本节预检查后，第一组应由你的程序直接点名缺失的层并提前退出。第二组应正常创建并销毁 Instance。[vkCreateInstance](https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateInstance.html) · [VkResult](https://docs.vulkan.org/refpages/latest/refpages/source/VkResult.html)
 
 ## 验收与回顾
 
