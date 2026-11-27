@@ -1,6 +1,6 @@
 # Vulkan Learning Engine
 
-一个通过逐课实践，从零搭建的 Vulkan 跨平台游戏引擎。学习目标覆盖场景、资源、光栅化、材质、物理、动画、音频、mesh clustering 与光线追踪。
+一个通过逐课实践，从零搭建的 Vulkan 跨平台游戏引擎。主线覆盖基础 RHI（Vulkan 后端）、光栅化、材质系统、场景管理、UI、物理与光线追踪；动画、GPU 驱动绘制和 mesh clustering 列入扩展清单，音频暂缓。
 
 当前实现为**第 0 课：C++20 + CMake 工程骨架**，包含独立静态库与 Sandbox 可执行程序。窗口和 Vulkan 渲染从后续课程逐步加入；当前运行结果是控制台输出。
 

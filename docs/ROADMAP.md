@@ -2,159 +2,166 @@
 
 学习起点：熟悉 C++，刚开始学习 Vulkan。主线采用“讲解原理 → 你亲自实现 → 运行与调试 → 审查和复盘 → 变体练习”的节奏。阶段是里程碑，一阶段通常包含多课；每次聚焦一个可验证的小目标。代码由用户编写，助手负责教学与审查；明确请求参考实现时再提供相应代码。
 
-2026-11-21 调整：以用户已有的 C++ 经验为起点，直接进入 Vulkan。L00 作为可选工程参考，未做的链接故障实验、预设问答、PUBLIC/PRIVATE 和 string_view 基础自检按用户要求跳过。L01–L03 改为按实际功能穿插的配套内容，完成它们不再是进入 Vulkan 的前提；跳过的内容不记为已验证掌握。
+以下是课程规划，实际实现情况以 [进度](PROGRESS.md) 为准。课号用于导航，可根据学习反馈拆分，不预设固定完工日期。
 
-核心环节由助手主动给出 Vulkan API 的局部提示；外部资产由助手按需获取并登记。开发仍采用命令行 CMake + Ninja。只有当前功能需要 SDK 链接、第三方依赖、shader 编译或运行时库处理时，才说明对应文件/target 的最小修改，并由用户实现；不安排额外编译链接练习，除非用户单独提出。
+## 路线调整记录
 
-第一项长期成果是一个小型交互场景：可以走动、加载场景、观察 PBR 材质、推动刚体、播放角色动画和空间音效。以这个场景为共同载体，继续研究 mesh clustering、GPU 驱动绘制与光追。用实际效果连接各系统，避免只堆积互不相干的技术演示。
+- **2026-11-27 按用户诉求重组主线。** 主线覆盖：基础 RHI、光栅化、光追、物理、材质系统、场景管理、UI。核心代码由用户亲自实现，以熟悉 Vulkan API 为首要目标。
+  - 新增 **基础 RHI 阶段（R1–R5）**：只做 Vulkan 后端，**RHI 公开接口不暴露任何 `Vk*` 类型或 `vulkan.h`**，为以后增加其他后端保留空间，但当前不实现第二个后端。
+  - 新增 **UI 阶段（U1–U3）**：自写 Dear ImGui 的 Vulkan 渲染后端与调试面板；游戏内 UI（SDF 文字）为可选。原 L32“调试面板”并入 U1–U2。
+  - 物理采用用户确认的方案：固定步长、碰撞检测与简单冲量求解由用户自写；复杂刚体堆叠由 Jolt 承担；新增 GPU compute 物理单元（G1，XPBD 布料/粒子）。
+  - **动画（L26–L28）、GPU 驱动绘制（L33–L35）、Mesh clustering（L36–L39）移入扩展清单**；**音频（L29–L30）暂缓**，不在当前计划内。工程收束（L44–L45）一并移入扩展清单。
+  - 历史课号保留，新增单元使用 R/U/G 前缀。
+- 2026-11-21：以用户已有的 C++ 经验为起点，直接进入 Vulkan。L00 作为可选工程参考，未做的基础练习按要求跳过，不记为已验证掌握。原 L01–L03（窗口、输入时间、日志所有权）并入实际使用它们的课程。
 
-以下是课程规划，实际实现情况以 [进度](PROGRESS.md) 为准。课时编号用于导航，可根据学习反馈拆分，不预设固定完工日期。
+## “自己实现”的边界
 
-## 当前执行顺序：从 Vulkan 开始
+| 类别 | 内容 |
+| --- | --- |
+| 用户必须亲自实现 | 所有 Vulkan 调用与对象生命周期；同步与 barrier；RHI 层；render graph；材质系统；场景与组件存储；**Dear ImGui 的 Vulkan 渲染后端**；加速结构构建与 SBT；compute 物理；自写的碰撞检测与冲量求解 |
+| 允许使用的库（不是 Vulkan 学习重点） | SDL3（窗口与输入）、GLM（数学）、stb_image 与 cgltf（文件解析）、Dear ImGui 核心（只用布局逻辑）、Jolt（复杂刚体）、glslc |
+| 先手写、后换库 | 内存分配：L07 先用 `vkAllocateMemory` 写最简分配器，理解 memory type/heap/对齐后再接入 VMA |
+| 不使用 | vk-bootstrap、Vulkan-Hpp RAII、`imgui_impl_vulkan`、nvpro 的 `nvvk` 辅助库、照搬 Sascha Willems 示例的 base 框架。它们会替你完成正好要学的部分；自己完成后可对照阅读 |
 
-保留 L00–L45 的历史编号，编号不再代表逐号完成所有前置课。当前入口是 [L04.1：Vulkan Instance、验证层与设备枚举](lessons/04-vulkan-bootstrap.md)。
+## 主线阶段
 
-| 顺序 | 实践单元 | 本次要理解的问题 | 可运行成果 | 粗估小时 |
+| 阶段 | 课程 | 重点 Vulkan 内容 | 可观察成果与验收 | 粗估小时 |
 | --- | --- | --- | --- | --- |
-| 1 | L04.1 Instance、验证层与设备枚举 | loader、Instance、PhysicalDevice 的区别；支持与启用；诊断和销毁 | 自己的程序输出版本、layer/extension 状态及设备名称，并验证消息回调 | 3–5 |
-| 2 | L04.2 最小窗口与 Surface（并入原 L01） | 窗口如何连接 Vulkan 呈现；实例扩展如何来自窗口系统 | 创建可缩放 SDL3 Vulkan 窗口与 Surface，查询设备对该 Surface 的呈现支持 | 3–5 |
-| 3 | L04.3 Device、Queue 与能力启用 | 物理设备与逻辑设备；queue family；feature 查询和启用 | 创建满足基线的 Device，获取 graphics/present 队列，输出选择理由 | 4–6 |
-| 4 | L05 Swapchain、清屏与同步 | acquire → record → submit → present；布局、信号量、fence 与资源复用 | 窗口清屏，正确处理缩放、最小化和恢复 | 16–24 |
-| 5 | L06 Pipeline 与三角形 | GLSL/SPIR-V、动态渲染、图形 pipeline 和 draw | 显示第一个三角形并解释数据流 | 10–16 |
-| 6 | L07–L10 资源与 3D 渲染 | buffer/staging、image/descriptor、相机、深度和多物体 | 多个有纹理的 3D 物体；输入与帧时间在相机课引入 | 40–64 |
+| A Vulkan 最小闭环（**当前**） | L04.1–L06 | instance、debug utils、device/queue、swapchain、sync2、dynamic rendering、pipeline | 看见三角形；缩放、最小化与恢复可用；正常路径及销毁无 validation error | 36–56 |
+| B 资源与 3D | L07–L10 | 内存类型、自写分配器→VMA、staging、image layout、descriptor、深度 | 自由相机观察多个带纹理物体；深度正确；上传与销毁通过同步验证 | 42–66 |
+| C 基础 RHI | R1–R5 | 帧资源、延迟销毁、代际句柄、状态跟踪 barrier、bindless、上传管理 | Sandbox 改用 RHI 后功能不变；公开头文件不含 `vulkan.h` | 30–50 |
+| D 调试 UI | U1–U2 | 每帧动态顶点/索引 buffer、字体 atlas 上传、scissor、push constant | 运行时面板显示帧时间、相机参数与渲染开关 | 10–18 |
+| E 场景管理 | L11–L14 | 从场景提取渲染数据、instance buffer | 加载 glTF；父子变换正确；视锥剔除；保存/加载往返；失效句柄可检测 | 44–70 |
+| F 材质与光栅 | L15–L22 | bindless 材质表、compute 预滤波 IBL、多 pass/render graph、阴影、HDR、timestamp query | PBR + 阴影 + 后处理；材质可在 ImGui 中实时调整；有可复现的 CPU/GPU 基线 | 88–140 |
+| G 物理 | L23–L25、G1 | compute pipeline、compute → vertex 的 buffer barrier、调试线框 pipeline | 方块落地堆叠、可推动；固定步长稳定；GPU 布料或粒子运行 | 44–70 |
+| H 光线追踪 | L40–L43 | BLAS/TLAS 构建与压缩、ray query、RT pipeline、SBT、时间累积 | 光栅/混合路径可切换；参考路径追踪器；无光追能力时仍可光栅运行 | 64–102 |
+| 主线收尾 | L31 | — | 一个小型交互场景：走动、PBR 材质、推动刚体、UI 调参、切换光追 | 12–20 |
+| 可选：游戏 UI | U3 | SDF 字体、批量 quad、UI pass | HUD 与菜单文字 | 10–18 |
 
-原 L02 的相机输入和帧时间并入 L09，固定物理步长放在 L23；原 L03 的 VkResult 处理、validation 输出和 Vulkan 对象所有权直接贯穿 L04–L07。C++ RAII 语法按需说明，但 GPU 工作完成之前不能释放对象等 Vulkan 生命周期约束必须讲清。每个单元仍由用户实现，助手讲解、给提示、审查和协助调试。
+**顺序：** A → B → C → D → E → F → H → L31。G 只依赖 E，可在 F 期间穿插进行。H 依赖 E（TLAS 实例来自场景）和 F（命中着色读取 bindless 材质、render graph 组织 pass）。
 
-## 阶段与验收
+**为什么 RHI 在 L10 之后：** 先用原生 API 把 buffer、image、descriptor、pipeline 写过两三遍，再从重复代码中提炼抽象，才知道哪些值得封装。L04–L10 期间 Vulkan 类型出现在引擎头文件中是允许的，R1 起迁移到 RHI 的私有实现。
 
-| 阶段 | 课程范围 | 预计学习小时 | 前置阶段 | 可观察成果与验收 |
-| --- | --- | --- | --- | --- |
-| P00 工程参考 | L00 | 按需，不单计 | 已有 C++ 工程经验 | 现有工程已可构建；基础练习不再作为后续门槛 |
-| P01 平台配套 | L01–L03 | 并入使用它们的课程 | 随实际功能引入 | 窗口随 Surface 引入；输入随相机引入；日志和所有权随 Vulkan 对象引入 |
-| P02 Vulkan 最小闭环 | L04–L06（含最小窗口） | 36–56 | 已有可构建工程；L04.1 不依赖窗口 | 看见三角形；缩放与恢复可用；正常路径及销毁过程无 validation error；输出设备能力摘要 |
-| P03 可用的 3D 渲染 | L07–L10（含相机输入） | 40–64 | P02 | 自由相机观察多个带纹理物体；深度遮挡正确；上传和销毁过程通过同步验证 |
-| P04 场景与资源 | L11–L14 | 44–70 | P03 | 多实例共享资源；父子变换正确；场景往返保存保持逻辑内容；失效句柄可检测 |
-| P05 材质与光照 | L15–L18 | 48–76 | P04 | 材质参数可调；缺图有默认值；线性/sRGB 与透明排序可解释 |
-| P06 渲染组织 | L19–L22 | 40–64 | P05 | 可追踪一帧的 pass 依赖；阴影与后处理开关有效；得到可复现的 CPU/GPU 性能基线 |
-| P07 物理系统 | L23–L25 | 30–48 | P04；L23 引入固定步长 | 方块落地和堆叠；可推动物体；固定物理步长稳定；移除实体同步移除刚体 |
-| P08 动画系统 | L26–L28 | 38–60 | P04、P03 | 角色可切换待机/行走；循环和过渡连续；明确动画与物理的根变换控制权 |
-| P09 音频系统 | L29–L30 | 14–22 | P04；复用已有窗口与循环 | 声音随方向和距离变化；事件触发音效；卸载场景不遗留播放实例 |
-| P10 首个完整演示 | L31–L32 | 26–40 | P06–P09 | 演示可从独立目录启动和交互；能重载场景；不依赖源码目录绝对路径 |
-| P11 GPU 驱动绘制 | L33–L35 | 40–64 | P06、P10 | 可切换参考绘制与剔除路径；检查漏画；记录可见数、draw 数和时间 |
-| P12 Mesh clustering | L36–L39 | 56–90 | P11 | 能显示 cluster 和 LOD；索引绘制回退可用；比较 mesh shader；验证保守剔除边界 |
-| P13 光线追踪 | L40–L43 | 64–102 | P05、P06；主线在 P12 后 | 可切换光栅/混合路径；运动时正确处理历史；无光追支持时仍可光栅运行 |
-| P14 工程收束 | L44–L45 | 32–48 | P10–P13 | 固定内容和配置可重复构建；给出平台/能力实测矩阵、已知限制与性能数据 |
+**为什么 UI 提前到 D：** 有了调试面板，后面的场景、材质、阴影和光追调参、排错都更高效。
 
-## 课程目录与逐课用时（保留历史课号）
+## 课程目录与逐课用时
 
-这里的一课是一个实践单元，往往需要多次学习完成。以下时间是针对“熟悉 C++、初学 Vulkan、亲自实现代码”的初步规划估计，不是固定课时或完成承诺。包含原理阅读、自己编码、正常调试、验证和自检；图形学基础及个人调试速度尚未测量，先保留较宽区间，在 L06 后按实际投入重新估算。
+以下时间针对“熟悉 C++、初学 Vulkan、亲自实现代码”的粗估，包含阅读、编码、调试、验证和自检；L06 后按实际投入重新估算。
 
 | 阶段 | 课程 | 名称 | 预计小时 |
 | --- | --- | --- | --- |
-| P00 工程参考 | L00 | CMake 工程、引擎库与 Sandbox（可选参考） | 不计入主线 |
-| P01 平台配套 | L01 | SDL3 最小窗口与事件 | 并入 L04.2 |
-|  | L02 | 输入、时间与主循环 | 并入 L09、L23 |
-|  | L03 | 日志、错误处理与资源所有权 | 并入对应 Vulkan 单元 |
-| P02 Vulkan 最小闭环 | L04 | Instance、验证层、最小窗口、Surface、设备与队列（拆为 .1–.3） | 10–16 |
+| A | L04 | Instance、验证层、最小 SDL3 窗口与 Surface、设备与队列（拆为 .1–.3） | 10–16 |
 |  | L05 | Swapchain、清屏、提交与呈现同步 | 16–24 |
 |  | L06 | 着色器、Pipeline 与第一个三角形 | 10–16 |
-| P03 可用的 3D 渲染 | L07 | Buffer、Staging、内存类型与 VMA | 10–16 |
+| B | L07 | Buffer、Staging、内存类型；自写最简分配器后接入 VMA | 12–18 |
 |  | L08 | Image、纹理、Sampler 与 Descriptor | 12–20 |
 |  | L09 | 相机输入、帧时间、坐标变换与深度测试 | 10–16 |
 |  | L10 | 索引网格与多物体绘制 | 8–12 |
-| P04 场景与资源 | L11 | Entity、Component 与代际句柄 | 10–16 |
-|  | L12 | Transform 层级与可见性 | 10–16 |
+| C | R1 | RHI 边界：Device/Queue/Swapchain 封装、frames in flight、延迟销毁队列；公开头文件去除 Vulkan 类型 | 6–10 |
+|  | R2 | 资源描述与代际句柄：Buffer、Texture、Sampler 的创建、查找与失效检测 | 5–8 |
+|  | R3 | CommandList 封装与资源状态跟踪，自动生成 sync2 barrier | 8–12 |
+|  | R4 | Pipeline 描述、shader 模块与 pipeline cache；bindless descriptor（descriptor indexing）+ push constant | 7–12 |
+|  | R5 | 上传管理器（staging ring buffer）；用 RHI 重写 Sandbox 并对比 | 4–8 |
+| D | U1 | 自写 Dear ImGui Vulkan 后端：字体 atlas、动态 VB/IB、scissor、与 swapchain 同步 | 6–10 |
+|  | U2 | 调试面板：帧时间、相机、渲染开关、资源统计 | 4–8 |
+| E | L11 | Entity、Component 与代际句柄 | 10–16 |
+|  | L12 | Transform 层级、包围体与视锥剔除 | 10–16 |
 |  | L13 | glTF 导入、资源缓存与实例化 | 14–22 |
-|  | L14 | 场景保存、加载与卸载 | 10–16 |
-| P05 材质与光照 | L15 | 材质定义、材质实例与 Shader 参数布局 | 10–16 |
+|  | L14 | 场景保存、加载与卸载；ImGui 场景层级面板 | 10–16 |
+| F | L15 | 材质模板、材质实例、参数布局与 bindless 材质表 | 10–16 |
 |  | L16 | 金属粗糙度 PBR 与直接光照 | 12–20 |
-|  | L17 | 法线贴图与 IBL 环境光照 | 16–24 |
-|  | L18 | Alpha Mask、透明混合与材质调试视图 | 10–16 |
-| P06 渲染组织 | L19 | 多 Pass、资源状态与最小 Render Graph | 16–24 |
-|  | L20 | 阴影贴图 | 10–16 |
+|  | L17 | 法线贴图与 IBL（compute 预滤波环境图与 BRDF LUT） | 16–24 |
+|  | L18 | Alpha Mask、透明混合、材质调试视图与 ImGui 材质编辑器 | 10–16 |
+|  | L19 | 多 Pass、资源状态与最小 Render Graph（建立在 R3 状态跟踪之上） | 16–24 |
+|  | L20 | 阴影贴图（含级联阴影） | 10–16 |
 |  | L21 | HDR、色调映射与后处理 | 8–14 |
-|  | L22 | GPU 时间测量、调试标记与抓帧 | 6–10 |
-| P07 物理系统 | L23 | 固定步长、数值积分与碰撞基础 | 8–12 |
-|  | L24 | Jolt 集成、刚体、碰撞体与场景同步 | 12–20 |
-|  | L25 | 物理射线查询、角色交互与碰撞事件 | 10–16 |
-| P08 动画系统 | L26 | 节点轨道、骨骼与关键帧采样 | 12–18 |
-|  | L27 | CPU 姿态求值与 GPU 蒙皮 | 12–20 |
-|  | L28 | 动画混合、状态机与 Root Motion | 14–22 |
-| P09 音频系统 | L29 | miniaudio、播放实例与音频资源生命周期 | 6–10 |
-|  | L30 | 空间音频、Listener/Source、事件与混音 | 8–12 |
-| P10 首个完整演示 | L31 | 场景、渲染、物理、动画与音频联调 | 16–24 |
-|  | L32 | 调试面板、资源路径与打包运行 | 10–16 |
-| P11 GPU 驱动绘制 | L33 | Compute 与可见实例列表 | 10–16 |
-|  | L34 | 间接绘制与实例、材质索引 | 12–20 |
-|  | L35 | 视锥剔除与 Hi-Z 遮挡剔除 | 18–28 |
-| P12 Mesh clustering | L36 | 离线 Meshlet 构建与颜色可视化 | 10–16 |
-|  | L37 | 包围体、Normal Cone 与 Cluster 剔除 | 12–20 |
-|  | L38 | 层次 LOD 与误差度量 | 20–32 |
-|  | L39 | Task/Mesh Shader 可选路径 | 14–22 |
-| P13 光线追踪 | L40 | 光追能力查询、BLAS/TLAS 与构建同步 | 14–22 |
-|  | L41 | Ray Query 阴影 | 10–16 |
-|  | L42 | Ray Tracing Pipeline、SBT 与反射/路径追踪小场景 | 20–32 |
+|  | L22 | GPU 时间测量、调试标记、RenderDoc/Nsight 抓帧 | 6–10 |
+| G | L23 | 固定步长、数值积分与碰撞检测基础（球、AABB、OBB，自写） | 8–12 |
+|  | L24 | 自写简单冲量求解器；再集成 Jolt 承担复杂堆叠，完成场景同步 | 14–22 |
+|  | L25 | 射线查询、角色交互、碰撞事件与碰撞体调试线框 | 10–16 |
+|  | G1 | GPU compute 物理：XPBD 布料或粒子，compute → graphics 同步 | 12–20 |
+| H | L40 | 光追能力查询、BLAS/TLAS 构建、压缩与构建同步 | 14–22 |
+|  | L41 | Ray Query 阴影与 AO，嵌入现有光栅路径 | 10–16 |
+|  | L42 | Ray Tracing Pipeline、SBT 与参考路径追踪器 | 20–32 |
 |  | L43 | 采样、时间累积、去噪与历史失效 | 20–32 |
-| P14 工程收束 | L44 | 资源烘焙、异步任务与性能预算 | 16–24 |
-|  | L45 | 跨平台回归、构建自动化、发布与设计回顾 | 16–24 |
+| 收尾 | L31 | 主线集成演示：场景、材质、物理、UI、光追切换 | 12–20 |
+| 可选 | U3 | 游戏内 UI：SDF 字体（msdfgen 离线生成 atlas）、批量 quad、UI pass | 10–18 |
 
-**调整后的基础合计：508–804 小时。** L00 不计入主线，L01–L03 不再重复计时；最小窗口和 Vulkan 诊断计入 L04，相机输入使 L09 增加 2–4 小时，固定步长计入原有 L23。为复习、跨系统返工与兼容问题留约 20% 余量，排期约为 **610–965 小时**。这是按课程范围重算的粗估，不是用户已投入时间或完成承诺；L06 后按实际学习反馈重估。原来的 524–829 小时总计不再用于当前路线。
+**主线合计：370–592 小时**（不含可选 U3）。为复习、跨系统返工与兼容问题留约 20% 余量，排期约 **445–710 小时**。这是按课程范围的粗估，不是完成承诺。
 
-估计范围对应本项目已有边界：物理使用 Jolt、音频使用 miniaudio，重点在原理理解与引擎集成；Mesh clustering 做到基础簇处理和层次 LOD；光追实现选定的小场景与基础累积/去噪。完整自研物理求解器、生产级虚拟几何流送、大型编辑器，以及商业引擎级别的兼容和质量保证需要另行估算。必要设备上的实际操作时间计入，等待获取设备等日历空档不计入学时。
-
-## 按每周投入换算
-
-以下基于含余量的 610–965 小时，假设每周投入稳定；月份按平均每月约 4.35 周换算并取整。每周时间尚待用户反馈，不预设具体完成日期。
+| 阶段成果 | 完成位置 | 累计小时（未加余量） |
+| --- | --- | --- |
+| Vulkan 三角形与基本呈现闭环 | L06 / A | 36–56 |
+| 自有 RHI 与调试 UI | U2 / D | 118–190 |
+| 场景、PBR 材质、阴影与后处理 | L22 / F | 250–400 |
+| 物理交互 | G1 / G | 294–470 |
+| 光追与主线集成演示 | L31 | 370–592 |
 
 | 每周有效学习时间 | 约需周数 | 约需月份 |
 | --- | --- | --- |
-| 8 小时 | 77–121 周 | 18–28 个月 |
-| 10 小时 | 61–97 周 | 14–22 个月 |
-| 15 小时 | 41–65 周 | 9–15 个月 |
-| 20 小时 | 31–49 周 | 7–11 个月 |
+| 8 小时 | 56–89 周 | 13–21 个月 |
+| 10 小时 | 45–71 周 | 10–16 个月 |
+| 15 小时 | 30–48 周 | 7–11 个月 |
+| 20 小时 | 23–36 周 | 5–8 个月 |
 
-可以先围绕阶段成果学习，不必等全路线完成才得到可用结果。以下累计时间尚未加额外 20% 余量：
+## 扩展清单与暂缓内容
 
-| 阶段成果 | 完成位置 | 累计小时 |
+扩展清单在主线完成后，或在前置满足时按兴趣插入。建议的第一个扩展是 GPU 驱动绘制，它直接复用 bindless（R4）和 compute（G1、L17）。
+
+| 类别 | 课程 | 名称 | 前置 | 预计小时 |
+| --- | --- | --- | --- | --- |
+| 扩展：GPU 驱动绘制 | L33 | Compute 与可见实例列表 | F | 10–16 |
+|  | L34 | 间接绘制与实例、材质索引 | L33 | 12–20 |
+|  | L35 | 视锥剔除与 Hi-Z 遮挡剔除 | L34 | 18–28 |
+| 扩展：Mesh clustering | L36 | 离线 Meshlet 构建（meshoptimizer）与颜色可视化 | L35 | 10–16 |
+|  | L37 | 包围体、Normal Cone 与 Cluster 剔除 | L36 | 12–20 |
+|  | L38 | 层次 LOD 与误差度量 | L37 | 20–32 |
+|  | L39 | Task/Mesh Shader 可选路径 | L37 | 14–22 |
+| 扩展：动画 | L26 | 节点轨道、骨骼与关键帧采样 | E | 12–18 |
+|  | L27 | CPU 姿态求值与 GPU 蒙皮 | L26、F | 12–20 |
+|  | L28 | 动画混合、状态机与 Root Motion | L27、G | 14–22 |
+| 扩展：工程收束 | L44 | 资源烘焙、异步任务与性能预算 | 主线 | 16–24 |
+|  | L45 | 跨平台回归、构建自动化、发布与设计回顾 | 主线 | 16–24 |
+| **暂缓** | L29–L30 | 音频（miniaudio、空间音频） | — | 不在当前计划 |
+
+## 参考教程对照
+
+参考资料用于理解和核对；课程代码由用户在自己的引擎结构中实现。**使用方式：读懂概念 → 关掉教程，在自己的结构里实现 → 运行通过且 validation 干净后，再对照参考实现找差异。**
+
+| 阶段 | 资料 | 注意事项 |
 | --- | --- | --- |
-| Vulkan 三角形与基本呈现闭环 | L06 / P02 | 36–56 |
-| 场景、资源与 PBR 材质 | L18 / P05 | 168–266 |
-| 包含物理、动画、音频的交互演示 | L32 / P10 | 316–500 |
-| 包含高级渲染的完整教学主线 | L45 / P14 | 508–804 |
-
-## 为什么这样安排
-
-先用无窗口的 Instance 与设备查询建立 Vulkan 对象模型，再为呈现引入最小窗口。这样第一项新增实现就是 Vulkan API；构建、平台和通用设施都服务于当前图形目标，不形成额外前置关卡。
-
-三角形只完成图形 API 的第一次闭环；资源上传、同步、场景数据和材质才让渲染器能承载真实内容。先积累两个以上 pass 的真实需求，再引入 render graph；先有性能基线，再引入 GPU 剔除和间接绘制。
-
-物理、动画、音频都通过场景和时间循环集成。P04 之后可以根据兴趣先学其中一条支线，不要求为了播放一个音效先学会高级渲染。光追也不依赖 mesh shader；P13 的技术前置是 P05/P06，放在后面是教学节奏安排。
-
-Mesh clustering 从“把三角网格分成可独立处理的小簇”开始。先理解数据布局、局部索引、包围体和剔除，再考虑层次 LOD、流送和可选硬件路径。虚拟几何的完整压缩、流送和软件光栅化体系作为进阶研究题，独立于第一次 meshlet 实现。
+| A/B | [vkguide.dev](https://vkguide.dev) | 与本项目基线最接近（1.3、dynamic rendering、sync2）；其初始化使用 vk-bootstrap，这部分自己写 |
+| A/B | [vulkan-tutorial.com](https://vulkan-tutorial.com) | C API，但基于 `VkRenderPass`；只看概念，渲染部分换成 dynamic rendering |
+| A/B | [Khronos Vulkan Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html) | 使用 Vulkan 1.4、Vulkan-Hpp 与 Slang；只看概念，不拼接代码 |
+| 全程 | [Khronos Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html)、API 规范 | 查语义、版本与扩展依赖 |
+| 同步 | [Synchronization Examples](https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples)、Themaister *Yet another blog explaining Vulkan synchronization* | L05、R3、L19 重点阅读 |
+| C RHI | zeux [Writing an efficient Vulkan renderer](https://zeux.io/2020/02/27/writing-an-efficient-vulkan-renderer/)、[NVRHI](https://github.com/NVIDIA-RTX/NVRHI)、[Granite](https://github.com/Themaister/Granite) | 只参考接口设计与取舍 |
+| F Render graph | GDC 2017 *FrameGraph: Extensible Rendering Architecture in Frostbite* | L19 |
+| D UI | [Dear ImGui](https://github.com/ocornut/imgui) 的 `docs/BACKENDS.md` | 自写后端完成后再对照 `imgui_impl_vulkan.cpp` |
+| U3 | Valve *Improved Alpha-Tested Magnification*（Green 2007）、[msdfgen](https://github.com/Chlumsky/msdfgen) | 可选 |
+| E 场景 | glTF 2.0 规范、[glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets)、skypjack *ECS back and forth* 系列 | — |
+| F 材质 | [LearnOpenGL PBR](https://learnopengl.com/PBR/Theory)、[Filament 文档](https://google.github.io/filament/Filament.html)、Karis 2013 *Real Shading in Unreal Engine 4* | — |
+| G 物理 | [Fix Your Timestep!](https://gafferongames.com/post/fix_your_timestep/)、[Ten Minute Physics](https://matthias-research.github.io/pages/tenMinutePhysics/)（XPBD）、Erin Catto 的 GDC 讲座、*Real-Time Collision Detection*、[Jolt 文档](https://jrouwe.github.io/JoltPhysics/) | — |
+| H 光追 | [vk_raytracing_tutorial_KHR](https://github.com/nvpro-samples/vk_raytracing_tutorial_KHR) | 只看 API 流程，不使用其 `nvvk` 辅助代码 |
+| H 光追 | [Ray Tracing in One Weekend](https://raytracing.github.io)、[PBRT 4th](https://pbr-book.org)、*Ray Tracing Gems* I/II（免费） | 采样与路径追踪理论 |
+| 全程 | [Sascha Willems Vulkan](https://github.com/SaschaWillems/Vulkan)、[Khronos Vulkan Samples](https://docs.vulkan.org/samples/latest/index.html) | 按功能查对应示例核对 API 用法 |
+| 工具 | RenderDoc、Nsight Graphics、validation layers 与 synchronization validation（vkconfig） | 从 L05 起常用 |
 
 ## 跨平台贯穿路线
 
-- **工程与平台配套**：已有 Windows/Linux 构建入口按需使用；在 L04.2 引入窗口时分离平台差异，有对应机器时实际验证。
-- **P02**：查询 loader、设备版本、features、extensions、limits、格式和呈现能力；在 macOS 上评估实际 Vulkan 实现与 portability 要求。
-- **P03/P06**：检查 shader 目标环境、资源布局、格式支持和同步行为。
-- **P10**：验证独立运行目录、资源路径、音频后端和输入行为。
-- **P11–P13**：高级功能有能力开关和回退；分别记录平台上实际走过哪条路径。
-- **P14**：补齐构建与运行矩阵。没有设备时标为“未验证”；软件驱动或仅构建通过不等于硬件渲染通过。
+- **A**：查询 loader、设备版本、features、extensions、limits、格式和呈现能力；在 macOS 上评估实际 Vulkan 实现与 portability 要求。
+- **B/C/F**：检查 shader 目标环境、资源布局、格式支持和同步行为；RHI 能力查询结果以后端无关的结构向上暴露。
+- **G/H**：高级功能有能力开关和回退；分别记录平台上实际走过哪条路径。
+- 没有设备时标为“未验证”；软件驱动或仅构建通过不等于硬件渲染通过。
 
-macOS 默认作为兼容目标评估，具体优先级仍可调整；移动端、网络、多图形后端、完整编辑器和大型开放世界流送放在主线后的扩展清单。
+macOS 默认作为兼容目标评估；移动端、网络、第二图形后端、完整编辑器和大型开放世界流送不在当前计划内。
 
 ## 每一课怎样完成
 
 1. 明确一个具体问题：例如“CPU 怎么知道上一帧仍在使用这个 buffer”。
 2. 画出对象关系或数据流，区分 CPU 行为和 GPU 行为。
-3. 助手给出职责、步骤和验收目标；用户亲自实现最小闭环，保持之前已完成的能力可用。提示按需逐步加深，不预先给整课答案。
-4. 用户运行、观察、排查并解释关键取舍；助手审查代码、协助定位，记录命令、环境和实际证据。助手可以协助执行验证，但不以自己的验证替代用户的理解。
-5. 用户完成一个与本课 Vulkan/引擎行为相关的小变体或诊断，解释核心数据流；不追加通用 C++、编译链接测验。更深入的拓展练习可选。分别更新参考工程、用户实现和掌握状态；用户选择跳过时如实记录，依据实际反馈继续。
+3. 助手给出职责、步骤、关键 API 片段和验收目标；用户亲自实现最小闭环，保持之前已完成的能力可用。
+4. 用户运行、观察、排查并解释关键取舍；助手审查代码、协助定位，记录命令、环境和实际证据。助手的验证不替代用户的理解。
+5. 用户完成一个与本课 Vulkan/引擎行为相关的小变体或诊断。分别更新参考工程、用户实现和掌握状态；用户选择跳过时如实记录。
 
-C++ 基础不单独重讲；GPU 资源生命周期重点解释使用完成条件、所有权和销毁顺序，RAII 与移动语义仅在用户询问或具体实现需要时补充。到相机时补矩阵和坐标，到光照时补线性空间与 BRDF，到动画时补四元数，到光追时补概率采样。
-
-## 参考资料的使用
-
-以 [Khronos Vulkan Guide](https://docs.vulkan.org/guide/latest/index.html) 和 API 规范查语义，以 [官方示例](https://docs.vulkan.org/samples/latest/index.html) 核对具体能力。参考资料用于理解和验证；课程代码由用户自行组织和实现。
-
-[当前 Khronos Tutorial](https://docs.vulkan.org/tutorial/latest/00_Introduction.html) 已采用 Vulkan 1.4、Slang 和 Vulkan-Hpp；本路线暂定 Vulkan 1.3、GLSL 与 C API，这是本项目的教学选择。阅读不同教程时先核对目标版本、语言和封装方式，避免直接拼接不匹配的代码。
+C++ 基础不单独重讲；GPU 资源生命周期重点解释使用完成条件、所有权和销毁顺序。到相机时补矩阵和坐标，到光照时补线性空间与 BRDF，到物理时补积分与约束，到光追时补概率采样。
